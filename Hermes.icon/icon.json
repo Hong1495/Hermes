@@ -7,10 +7,10 @@
           "image-name" : "Hermes 2.png",
           "name" : "Hermes 2",
           "position" : {
-            "scale" : 1.2,
+            "scale" : 1.8,
             "translation-in-points" : [
-              0,
-              0
+              209.7109375,
+              77
             ]
           }
         }

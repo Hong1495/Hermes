@@ -2,7 +2,7 @@
 //  HermesApp.swift
 //  Hermes
 //
-//  Created by 斯威特哈尼 on 2026/1/10.
+//  Created by Hermes AI Assistant.
 //
 
 import SwiftUI
@@ -12,7 +12,7 @@ import SwiftData
 struct HermesApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            HermesItem.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -28,5 +28,11 @@ struct HermesApp: App {
             ContentView()
         }
         .modelContainer(sharedModelContainer)
+        
+        #if os(macOS)
+        Settings {
+            SettingsView()
+        }
+        #endif
     }
 }
