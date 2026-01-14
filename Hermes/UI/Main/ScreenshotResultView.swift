@@ -279,25 +279,9 @@ class DraggableNSView: NSView {
     private var initialLocation: NSPoint?
     
     override func mouseDown(with event: NSEvent) {
-        initialLocation = event.locationInWindow
+        // 使用系统原生拖动，彻底消除手动计算导致的抖动
+        window?.performDrag(with: event)
     }
     
-    override func mouseDragged(with event: NSEvent) {
-        guard let window = self.window, let initialLocation = initialLocation else { return }
-        
-        let currentLocation = event.locationInWindow
-        let delta = NSPoint(
-            x: currentLocation.x - initialLocation.x,
-            y: currentLocation.y - initialLocation.y
-        )
-        
-        var origin = window.frame.origin
-        origin.x += delta.x
-        origin.y += delta.y
-        window.setFrameOrigin(origin)
-    }
-    
-    override func mouseUp(with event: NSEvent) {
-        initialLocation = nil
-    }
+    // mouseDragged 和 mouseUp 不再需要，由系统接管
 }

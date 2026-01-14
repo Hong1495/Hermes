@@ -1,23 +1,31 @@
 import SwiftUI
 
+/// 应用根视图，根据当前模式切换显示截图结果或翻译界面
 struct RootView: View {
     @ObservedObject var appState = AppState.shared
     
     var body: some View {
         ZStack {
-            switch appState.mode {
-            case .actions:
-                ScreenshotResultView()
-                    .transition(.opacity)
-            case .translation:
-                TranslationView()
-                    .transition(.opacity)
+            // 毛玻璃背景
+            VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
+                .ignoresSafeArea()
+            
+            // 内容区域
+            Group {
+                switch appState.mode {
+                case .actions:
+                    ScreenshotResultView()
+                case .translation:
+                    TranslationView()
+                }
             }
         }
-        .frame(width: appState.mode == .translation ? 500 : 900) // Translation narrower, Screenshot wider (900)
-        // Dynamic height is tricky with FloatingPanel because the window frame needs to update.
-        // For now, let's keep it fixed or semi-fixed.
-        .frame(minHeight: 400)
-        .padding(.bottom, 1) // Tiny padding for border
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.opacity(0.001))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        )
     }
 }

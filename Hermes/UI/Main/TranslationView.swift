@@ -8,7 +8,7 @@ struct TranslationView: View {
     @FocusState private var isInputFocused: Bool
     
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: Theme.Spacing.medium) {
             // Header
             HStack {
                 Label("翻译", systemImage: "character.book.closed")
@@ -17,9 +17,7 @@ struct TranslationView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
             }
-            .padding(.horizontal, Theme.Spacing.large)
-            .padding(.top, Theme.Spacing.medium)
-            .padding(.bottom, Theme.Spacing.small)
+            .padding(.horizontal, Theme.Spacing.medium)
             
             // Input Area
             ZStack(alignment: .topLeading) {
@@ -33,7 +31,7 @@ struct TranslationView: View {
                 TextEditor(text: $inputText)
                     .font(.body)
                     .scrollContentBackground(.hidden)
-                    .frame(minHeight: 60, maxHeight: .infinity)
+                    .frame(minHeight: 80)
                     .padding(Theme.Spacing.small)
                     .focused($isInputFocused)
                     .onChange(of: inputText) { _, newValue in
@@ -52,7 +50,7 @@ struct TranslationView: View {
                 RoundedRectangle(cornerRadius: Theme.CornerRadius.medium)
                     .stroke(Theme.Colors.glassBorder, lineWidth: 1)
             )
-            .padding(.horizontal, Theme.Spacing.large)
+            .padding(.horizontal, Theme.Spacing.medium)
             
             // Language Selection & Action
             HStack {
@@ -89,18 +87,13 @@ struct TranslationView: View {
                 }) {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundStyle(Theme.Colors.accent)
+                        .foregroundStyle(Color(hex: "E60012"))
                         .background(Circle().fill(Color.white).padding(2))
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.return, modifiers: .command)
             }
-            .padding(.horizontal, Theme.Spacing.large)
-            .padding(.vertical, Theme.Spacing.small)
-            
-            Divider()
-                .foregroundStyle(Theme.Colors.separator)
-                .padding(.horizontal, Theme.Spacing.large)
+            .padding(.horizontal, Theme.Spacing.medium)
             
             // Output Area
             ScrollView {
@@ -121,15 +114,14 @@ struct TranslationView: View {
                         .textSelection(.enabled)
                 }
             }
-            .frame(minHeight: 60, maxHeight: .infinity)
+            .frame(minHeight: 100)
             .background(Theme.Colors.glassBackground)
             .cornerRadius(Theme.CornerRadius.medium)
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.CornerRadius.medium)
                     .stroke(Theme.Colors.glassBorder, lineWidth: 1)
             )
-            .padding(.horizontal, Theme.Spacing.large)
-            .padding(.bottom, Theme.Spacing.large)
+            .padding(.horizontal, Theme.Spacing.medium)
             
             // Footer Actions
             if !appState.translatedText.isEmpty {
@@ -144,10 +136,13 @@ struct TranslationView: View {
                     }
                     .modernStyle(.ghost)
                 }
-                .padding(.horizontal, Theme.Spacing.large)
-                .padding(.bottom, Theme.Spacing.medium)
+                .padding(.horizontal, Theme.Spacing.medium)
             }
+            
+            Spacer(minLength: Theme.Spacing.medium)
         }
+        .padding(.vertical, Theme.Spacing.medium)
+        .background(TranslationDragView())
         .onAppear {
             isInputFocused = true
         }
@@ -161,4 +156,24 @@ struct TranslationView: View {
             appState.isTranslating = false
         }
     }
+}
+
+// MARK: - Private Draggable Helper for Translation
+private struct TranslationDragView: NSViewRepresentable {
+    func makeNSView(context: Context) -> TranslationDraggableNSView {
+        return TranslationDraggableNSView()
+    }
+    
+    func updateNSView(_ nsView: TranslationDraggableNSView, context: Context) {}
+}
+
+private class TranslationDraggableNSView: NSView {
+    private var initialLocation: NSPoint?
+    
+    override func mouseDown(with event: NSEvent) {
+        // 使用系统原生拖动，彻底消除手动计算导致的抖动
+        window?.performDrag(with: event)
+    }
+    
+    // mouseDragged 和 mouseUp 不再需要，由系统接管
 }

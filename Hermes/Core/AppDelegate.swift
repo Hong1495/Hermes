@@ -59,19 +59,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func handleCapture(mode: ScreenshotService.CaptureMode) {
-        print("📸 handleCapture called with mode: \(mode)")
+        print("📸 [AppDelegate] handleCapture called with mode: \(mode)")
         windowController?.closeWindow()
         
         // Delay slightly to ensure window animation finishes and isn't captured or reappearing
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            print("📸 Starting capture...")
+            print("📸 [AppDelegate] Starting capture task...")
             ScreenshotService.shared.capture(mode: mode) { image in
-                print("📸 Capture completed, image: \(image != nil)")
-                guard let image = image else { return }
+                print("📸 [AppDelegate] Capture callback received - Image is nil: \(image == nil)")
+                guard let image = image else { 
+                    print("⚠️ [AppDelegate] Capture failed or cancelled by user.")
+                    return 
+                }
+                
                 DispatchQueue.main.async {
-                    print("📸 Setting screenshot and showing window")
+                    print("📸 [AppDelegate] Setting mode and screenshot in AppState...")
                     AppState.shared.mode = .actions
                     AppState.shared.setScreenshot(image)
+                    
+                    print("📸 [AppDelegate] Requesting windowController to showWindow...")
                     self.windowController?.showWindow()
                 }
             }
