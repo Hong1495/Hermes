@@ -4,15 +4,20 @@
     {
       "layers" : [
         {
-          "image-name" : "Hermes 2.png",
-          "name" : "Hermes 2",
-          "position" : {
-            "scale" : 1.8,
-            "translation-in-points" : [
-              209.7109375,
-              77
-            ]
-          }
+          "image-name" : "Hermes.png",
+          "name" : "Hermes",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 1.25,
+                "translation-in-points" : [
+                  0,
+                  0
+                ]
+              }
+            }
+          ]
         }
       ],
       "shadow" : {

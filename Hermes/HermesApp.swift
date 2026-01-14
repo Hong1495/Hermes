@@ -6,33 +6,14 @@
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct HermesApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            HermesItem.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
-
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    
     var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-        .modelContainer(sharedModelContainer)
-        
-        #if os(macOS)
         Settings {
-            SettingsView()
+            EmptyView()
         }
-        #endif
     }
 }
