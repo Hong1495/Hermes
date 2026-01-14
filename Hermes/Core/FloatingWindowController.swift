@@ -37,10 +37,16 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
     
     func closeWindow() {
         panel.orderOut(nil)
+        removeEventMonitors()
     }
     
     func showWindow() {
         guard let screen = screenForMouse() else { return }
+        
+        // 确保清理旧的监听器
+        removeEventMonitors()
+        setupEventMonitors()
+        
         
         let mode = AppState.shared.mode
         let targetSize = calculateSize(for: mode)
@@ -113,19 +119,63 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
         }
     }
     
+    // MARK: - Event Monitoring
+    
+    private var localMonitor: Any?
+    private var activationObserver: NSObjectProtocol?
+    
+    private func setupEventMonitors() {
+        // 1. App Activation Monitor: 监听应用切换
+        // 只有当用户切换到“普通应用”（如浏览器、Finder）时才自动关闭。
+        // 如果切换到“辅助应用”（如剪贴板工具、截图工具，通常是 .accessory），则保持窗口显示，以便它们能完成操作（如粘贴）。
+        if activationObserver == nil {
+            activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didActivateApplicationNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self = self,
+                      self.panel.isVisible,
+                      AppState.shared.mode == .translation else { return }
+                
+                if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
+                    // 只在切换到普通应用时关闭
+                    if app.activationPolicy == .regular {
+                        self.closeWindow()
+                    }
+                }
+            }
+        }
+        
+        // 2. Local Monitor: 监听应用内的点击
+        if localMonitor == nil {
+            localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+                guard let self = self else { return event }
+                
+                // 如果点击发生在窗口外部（但仍属于本应用，如状态栏图标），也关闭
+                if self.panel.isVisible && AppState.shared.mode == .translation {
+                    if event.window != self.panel {
+                        self.closeWindow()
+                    }
+                }
+                return event
+            }
+        }
+    }
+    
+    private func removeEventMonitors() {
+        if let observer = activationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            activationObserver = nil
+        }
+        
+        if let monitor = localMonitor {
+            NSEvent.removeMonitor(monitor)
+            localMonitor = nil
+        }
+    }
+    
     // MARK: - NSWindowDelegate
-    
-    func windowDidResignKey(_ notification: Notification) {
-        if AppState.shared.mode == .translation {
-            closeWindow()
-        }
-    }
-    
-    func windowDidResignMain(_ notification: Notification) {
-        if AppState.shared.mode == .translation {
-            closeWindow()
-        }
-    }
     
     func windowDidResize(_ notification: Notification) {
         if AppState.shared.mode != .translation {

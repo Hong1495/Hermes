@@ -87,6 +87,18 @@ struct GeneralSettingsView: View {
         if panel.runModal() == .OK {
             if let url = panel.url {
                 defaultSavePath = url.path
+                
+                // Create Security Scoped Bookmark
+                do {
+                    let bookmarkData = try url.bookmarkData(
+                        options: .withSecurityScope,
+                        includingResourceValuesForKeys: nil,
+                        relativeTo: nil
+                    )
+                    UserDefaults.standard.set(bookmarkData, forKey: "defaultSavePathBookmark")
+                } catch {
+                    print("Failed to create bookmark: \(error)")
+                }
             }
         }
     }

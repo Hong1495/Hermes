@@ -229,7 +229,41 @@ struct ScreenshotResultView: View {
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: ".")
         
-        // Use default path if set
+        // Try to use Security Scoped Bookmark first (for persistence)
+        if let bookmarkData = UserDefaults.standard.data(forKey: "defaultSavePathBookmark") {
+            var isStale = false
+            do {
+                let url = try URL(
+                    resolvingBookmarkData: bookmarkData,
+                    options: .withSecurityScope,
+                    relativeTo: nil,
+                    bookmarkDataIsStale: &isStale
+                )
+                
+                if isStale {
+                    // Bookmark is stale, might need recreation (usually requires user interaction or new access)
+                    print("Bookmark is stale")
+                }
+                
+                if url.startAccessingSecurityScopedResource() {
+                    defer { url.stopAccessingSecurityScopedResource() }
+                    
+                    let fileURL = url.appendingPathComponent(fileName)
+                    if let tiff = image.tiffRepresentation, 
+                       let bitmap = NSBitmapImageRep(data: tiff), 
+                       let data = bitmap.representation(using: .png, properties: [:]) {
+                        try data.write(to: fileURL)
+                        NotificationCenter.default.post(name: NSNotification.Name("CloseFloatingWindow"), object: nil)
+                        return
+                    }
+                }
+            } catch {
+                print("Failed to resolve bookmark: \(error)")
+                // Fallback to path check or panel
+            }
+        }
+        
+        // Use default path string if set (Legacy/Fallback)
         if !defaultSavePath.isEmpty {
             let baseURL = URL(fileURLWithPath: defaultSavePath, isDirectory: true)
             let fileURL = baseURL.appendingPathComponent(fileName)
