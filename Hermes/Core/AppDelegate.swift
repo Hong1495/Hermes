@@ -97,7 +97,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "cursorarrow.click.2", accessibilityDescription: "Hermes")
+            button.image = NSImage(named: "MenuBarIcon")
         }
         
         let menu = NSMenu()
