@@ -29,23 +29,23 @@ struct SettingsView: View {
                             Image(systemName: tab.icon)
                                 .font(.system(size: 20))
                                 .padding(6)
-                                .background(selectedTab == tab ? Color.white : Color.clear)
+                                .background(selectedTab == tab ? Color(nsColor: .selectedControlColor).opacity(0.15) : Color.clear)
                                 .cornerRadius(8)
-                                .shadow(color: selectedTab == tab ? .black.opacity(0.1) : .clear, radius: 2, x: 0, y: 1)
+                                .shadow(color: selectedTab == tab ? .black.opacity(0.05) : .clear, radius: 2, x: 0, y: 1)
                             
                             Text(tab.rawValue)
                                 .font(.caption)
                                 .fontWeight(selectedTab == tab ? .medium : .regular)
                         }
                         .frame(width: 60)
-                        .foregroundColor(selectedTab == tab ? .blue : .secondary)
+                        .foregroundColor(selectedTab == tab ? .accentColor : .secondary)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 20)
             .frame(maxWidth: .infinity)
-            .background(Color.white)
+            .background(Color(nsColor: .windowBackgroundColor))
             
             Divider()
             

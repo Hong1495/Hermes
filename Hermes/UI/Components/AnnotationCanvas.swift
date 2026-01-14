@@ -10,6 +10,7 @@ struct AnnotationCanvas: View {
     @State private var textInputValue: String = ""
     @FocusState private var isTextFieldFocused: Bool
     @FocusState private var isCanvasFocused: Bool
+    @State private var dragStartedWhileEditing: Bool = false
     
     // For moving existing annotations
     @State private var draggingAnnotationId: UUID? = nil
@@ -62,9 +63,13 @@ struct AnnotationCanvas: View {
                     .gesture(
                         DragGesture(minimumDistance: 1)
                             .onChanged { value in
-                                // Commit any active text input first
-                                if showingTextInput {
-                                    commitTextAnnotation()
+                                // If the drag started while editing, or we just started editing, 
+                                // we only commit and then ignore for the rest of this drag.
+                                if showingTextInput || dragStartedWhileEditing {
+                                    if showingTextInput {
+                                        commitTextAnnotation()
+                                        dragStartedWhileEditing = true
+                                    }
                                     return
                                 }
                                 
@@ -106,6 +111,11 @@ struct AnnotationCanvas: View {
                                 }
                             }
                             .onEnded { value in
+                                if dragStartedWhileEditing {
+                                    dragStartedWhileEditing = false
+                                    return
+                                }
+                                if showingTextInput { return }
                                 if let draggingId = draggingAnnotationId {
                                     // Commit annotation move
                                     state.moveAnnotation(id: draggingId, by: dragOffset)
@@ -146,7 +156,8 @@ struct AnnotationCanvas: View {
                     )
                     .onTapGesture { location in
                         // Tap outside text field commits it
-                        if showingTextInput && !isNearPosition(location, textInputPosition) {
+                        // Use a smaller threshold or just check if showingTextInput
+                        if showingTextInput {
                             commitTextAnnotation()
                             return
                         }

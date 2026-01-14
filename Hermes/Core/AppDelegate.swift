@@ -45,23 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // 4. OCR Capture (O) - Silent Mode
         loadAndRegister(key: "shortcut_ocr", defaultKey: .o, defaultMods: [.command, .shift], handler: { [weak self] in
-            // Capture area, but don't show window. Process and copy.
-            self?.windowController?.closeWindow()
-            ScreenshotService.shared.capture(mode: .area) { image in
-                guard let image = image else { return }
-                DispatchQueue.main.async {
-                    // Silent processing
-                    OCRService.shared.recognizeText(from: image) { text in
-                        if let text = text, !text.isEmpty {
-                            let pb = NSPasteboard.general
-                            pb.clearContents()
-                            pb.setString(text, forType: .string)
-                            // System sound to indicate success
-                            NSSound(named: "Glass")?.play()
-                        }
-                    }
-                }
-            }
+            self?.ocrCaptureSilent()
         })
         
         // 5. Translate (T)
@@ -137,6 +121,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         settingsWindowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+    
+    private func ocrCaptureSilent() {
+        windowController?.closeWindow()
+        // Wait for window to close
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            ScreenshotService.shared.capture(mode: .area) { image in
+                guard let image = image else { return }
+                DispatchQueue.main.async {
+                    OCRService.shared.recognizeText(from: image) { text in
+                        if let text = text, !text.isEmpty {
+                            let pb = NSPasteboard.general
+                            pb.clearContents()
+                            pb.setString(text, forType: .string)
+                            NSSound(named: "Glass")?.play()
+                        }
+                    }
+                }
+            }
+        }
     }
     
     @objc func quitApp() {

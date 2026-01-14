@@ -7,7 +7,7 @@ struct ShortcutsSettingsView: View {
                 ShortcutRow(title: "选区截图", icon: "viewfinder.crop.circle", key: "shortcut_capture", defaultShortcut: Shortcut(key: .x, modifiers: [.command, .shift]))
                 ShortcutRow(title: "窗口截图", icon: "macwindow.on.rectangle", key: "shortcut_window", defaultShortcut: Shortcut(key: .w, modifiers: [.command, .shift]))
                 ShortcutRow(title: "全屏截图", icon: "rectangle.inset.filled", key: "shortcut_screen", defaultShortcut: Shortcut(key: .s, modifiers: [.command, .shift]))
-                ShortcutRow(title: "OCR 截图 (无界面)", icon: "text.viewfinder", key: "shortcut_ocr", defaultShortcut: Shortcut(key: .o, modifiers: [.command, .shift]))
+                ShortcutRow(title: "OCR 复制文字", icon: "text.viewfinder", key: "shortcut_ocr", defaultShortcut: Shortcut(key: .o, modifiers: [.command, .shift]))
             }
             
             Section("工具") {

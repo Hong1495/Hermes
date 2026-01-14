@@ -221,13 +221,36 @@ struct ScreenshotResultView: View {
         }
     }
     
+    @AppStorage("defaultSavePath") var defaultSavePath: String = ""
+    
     private func saveImage() {
         guard let image = generateFinalImage() else { return }
+        let fileName = "Screenshot \(Date().formatted(date: .numeric, time: .shortened)).png"
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: ".")
+        
+        // Use default path if set
+        if !defaultSavePath.isEmpty {
+            let baseURL = URL(fileURLWithPath: defaultSavePath, isDirectory: true)
+            let fileURL = baseURL.appendingPathComponent(fileName)
+            if let tiff = image.tiffRepresentation, 
+               let bitmap = NSBitmapImageRep(data: tiff), 
+               let data = bitmap.representation(using: .png, properties: [:]) {
+                do {
+                    try data.write(to: fileURL)
+                    NotificationCenter.default.post(name: NSNotification.Name("CloseFloatingWindow"), object: nil)
+                    return
+                } catch {
+                    print("Failed to save to default path: \(error)")
+                    // Fallback to save panel on error
+                }
+            }
+        }
         
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.png]
         savePanel.canCreateDirectories = true
-        savePanel.nameFieldStringValue = "Screenshot \(Date().formatted(date: .numeric, time: .shortened)).png"
+        savePanel.nameFieldStringValue = fileName
         savePanel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
         
         savePanel.begin { response in

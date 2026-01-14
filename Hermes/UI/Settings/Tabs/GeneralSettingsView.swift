@@ -5,6 +5,7 @@ struct GeneralSettingsView: View {
     @AppStorage("launchAtLogin") var launchAtLogin = false
     @AppStorage("hideMenuBarIcon") var hideMenuBarIcon = false
     @AppStorage("appTheme") var appTheme: String = "System" // System, Light, Dark
+    @AppStorage("defaultSavePath") var defaultSavePath: String = ""
     
     var body: some View {
         Form {
@@ -26,6 +27,28 @@ struct GeneralSettingsView: View {
                     updateAppearance(newValue)
                 }
             }
+            
+            Section("保存设置") {
+                HStack {
+                    Text("默认保存路径")
+                    Spacer()
+                    Text(defaultSavePath.isEmpty ? "桌面 (默认)" : (URL(fileURLWithPath: defaultSavePath).lastPathComponent))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    
+                    Button("选择...") {
+                        selectFolder()
+                    }
+                }
+                
+                if !defaultSavePath.isEmpty {
+                    Button("重置为桌面") {
+                        defaultSavePath = ""
+                    }
+                    .foregroundColor(.red)
+                }
+            }
         }
         .formStyle(.grouped)
     }
@@ -38,5 +61,20 @@ struct GeneralSettingsView: View {
         default: appearance = nil
         }
         NSApp.appearance = appearance
+    }
+    
+    private func selectFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.title = "选择默认保存目录"
+        
+        if panel.runModal() == .OK {
+            if let url = panel.url {
+                defaultSavePath = url.path
+            }
+        }
     }
 }
