@@ -11,6 +11,19 @@ struct GeneralSettingsView: View {
         Form {
             Section {
                 Toggle("登录时启动", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, newValue in
+                        do {
+                            if newValue {
+                                try SMAppService.mainApp.register()
+                            } else {
+                                try SMAppService.mainApp.unregister()
+                            }
+                        } catch {
+                            print("Failed to update login item: \(error)")
+                            // Revert the toggle if operation failed
+                            launchAtLogin = !newValue
+                        }
+                    }
                 
                 Toggle("隐藏菜单栏图标", isOn: $hideMenuBarIcon)
                     .onChange(of: hideMenuBarIcon) { _, newValue in
