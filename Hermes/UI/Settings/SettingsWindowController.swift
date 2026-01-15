@@ -8,7 +8,7 @@ class SettingsWindowController: NSWindowController {
         let hostingController = NSHostingController(rootView: settingsView)
         
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "Settings"
+        window.title = "设置"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.setContentSize(NSSize(width: 540, height: 380))
         window.center()

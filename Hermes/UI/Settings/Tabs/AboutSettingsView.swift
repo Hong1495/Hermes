@@ -3,7 +3,7 @@ import SwiftUI
 struct AboutSettingsView: View {
     var body: some View {
         VStack(spacing: 20) {
-            Image(nsImage: NSImage(named: "AppIcon") ?? NSImage(systemSymbolName: "cursorarrow.click.2", accessibilityDescription: nil)!)
+            Image(nsImage: NSImage(named: NSImage.applicationIconName) ?? NSImage())
                 .resizable()
                 .frame(width: 64, height: 64)
             
@@ -14,9 +14,6 @@ struct AboutSettingsView: View {
             Text("版本 1.0.0")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            
-            Link("产品社区", destination: URL(string: "https://github.com/sakyahong/hermes")!)
-                .font(.caption)
         }
     }
 }
