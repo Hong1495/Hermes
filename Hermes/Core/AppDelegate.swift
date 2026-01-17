@@ -97,7 +97,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem?.button {
-            button.image = NSImage(named: "MenuBarIcon")
+            if let image = NSImage(named: "MenuBarIcon") {
+                // Reduced from 18x18 to 14x14 to address user feedback about visual size
+                image.size = NSSize(width: 14, height: 14)
+                image.isTemplate = true
+                button.image = image
+            }
         }
         
         let menu = NSMenu()

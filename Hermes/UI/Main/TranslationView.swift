@@ -6,6 +6,7 @@ struct TranslationView: View {
     @State private var sourceLang = "auto"
     @State private var targetLang = "zh-CN"
     @FocusState private var isInputFocused: Bool
+    @AppStorage("autoTranslateMode") var autoTranslateMode = false
     
     var body: some View {
         VStack(spacing: Theme.Spacing.medium) {
@@ -15,6 +16,18 @@ struct TranslationView: View {
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
+                
+                if autoTranslateMode {
+                    Text("智能模式")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color(hex: "E60012").opacity(0.1))
+                        .foregroundStyle(Color(hex: "E60012"))
+                        .cornerRadius(4)
+                }
+                
                 Spacer()
             }
             .padding(.horizontal, Theme.Spacing.medium)
@@ -150,6 +163,21 @@ struct TranslationView: View {
     
     private func translate() {
         guard !inputText.isEmpty else { return }
+        
+        if autoTranslateMode {
+            // Check if input contains Chinese characters using Regex
+            if inputText.range(of: "\\p{Han}", options: .regularExpression) != nil {
+                // If input is Chinese -> Translate to English
+                targetLang = "en"
+                // Optional: set source to zh-CN explicitly if desired, but auto works
+                if sourceLang != "zh-CN" { sourceLang = "auto" }
+            } else {
+                // If input is not Chinese (English or others) -> Translate to Chinese
+                targetLang = "zh-CN"
+                if sourceLang != "auto" { sourceLang = "auto" }
+            }
+        }
+        
         appState.isTranslating = true
         TranslationService.shared.translate(text: inputText, source: sourceLang, target: targetLang) { result in
             appState.translatedText = result
