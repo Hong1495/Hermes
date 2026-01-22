@@ -157,7 +157,15 @@ struct TranslationView: View {
         .padding(.vertical, Theme.Spacing.medium)
         .background(TranslationDragView())
         .onAppear {
-            isInputFocused = true
+            // 清空上次的翻译内容
+            inputText = ""
+            appState.translatedText = ""
+            appState.isTranslating = false
+
+            // 延迟聚焦确保窗口完全加载后才设置焦点
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isInputFocused = true
+            }
         }
     }
     

@@ -8,7 +8,7 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
     
     var panel: FloatingPanel!
     
-    private let translationSize = NSSize(width: 420, height: 450)
+    private let translationSize = NSSize(width: 500, height: 550)
     private let screenshotSize = NSSize(width: 900, height: 600)
     
     // MARK: - Initialization
