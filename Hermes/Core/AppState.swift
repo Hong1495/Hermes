@@ -14,6 +14,7 @@ class AppState: ObservableObject {
     @Published var ocrText: String = ""
     @Published var isRecognizing: Bool = false
     @Published var translatedText: String = ""
+    @Published var translationInput: String = ""
     @Published var isTranslating: Bool = false
     
     func setScreenshot(_ image: NSImage) {
@@ -32,5 +33,6 @@ class AppState: ObservableObject {
         self.capturedImage = nil
         self.ocrText = ""
         self.translatedText = ""
+        self.translationInput = ""
     }
 }

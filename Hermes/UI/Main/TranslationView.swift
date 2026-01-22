@@ -2,7 +2,6 @@ import SwiftUI
 
 struct TranslationView: View {
     @ObservedObject var appState = AppState.shared
-    @State private var inputText = ""
     @State private var sourceLang = "auto"
     @State private var targetLang = "zh-CN"
     @FocusState private var isInputFocused: Bool
@@ -34,24 +33,24 @@ struct TranslationView: View {
             
             // Input Area
             ZStack(alignment: .topLeading) {
-                if inputText.isEmpty {
+                if appState.translationInput.isEmpty {
                     Text("输入或粘贴文本...")
                         .font(.body)
                         .foregroundStyle(.tertiary)
                         .padding(Theme.Spacing.medium)
                 }
                 
-                TextEditor(text: $inputText)
+                TextEditor(text: $appState.translationInput)
                     .font(.body)
                     .scrollContentBackground(.hidden)
                     .frame(minHeight: 80)
                     .padding(Theme.Spacing.small)
                     .focused($isInputFocused)
-                    .onChange(of: inputText) { _, newValue in
+                    .onChange(of: appState.translationInput) { _, newValue in
                         // Debounce auto-translate
                         Task {
                             try? await Task.sleep(nanoseconds: 800_000_000) // 0.8s debounce
-                            if newValue == inputText && !newValue.isEmpty {
+                            if newValue == appState.translationInput && !newValue.isEmpty {
                                 translate()
                             }
                         }
@@ -157,11 +156,6 @@ struct TranslationView: View {
         .padding(.vertical, Theme.Spacing.medium)
         .background(TranslationDragView())
         .onAppear {
-            // 清空上次的翻译内容
-            inputText = ""
-            appState.translatedText = ""
-            appState.isTranslating = false
-
             // 延迟聚焦确保窗口完全加载后才设置焦点
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 isInputFocused = true
@@ -170,11 +164,11 @@ struct TranslationView: View {
     }
     
     private func translate() {
-        guard !inputText.isEmpty else { return }
+        guard !appState.translationInput.isEmpty else { return }
         
         if autoTranslateMode {
             // Check if input contains Chinese characters using Regex
-            if inputText.range(of: "\\p{Han}", options: .regularExpression) != nil {
+            if appState.translationInput.range(of: "\\p{Han}", options: .regularExpression) != nil {
                 // If input is Chinese -> Translate to English
                 targetLang = "en"
                 // Optional: set source to zh-CN explicitly if desired, but auto works
@@ -187,7 +181,7 @@ struct TranslationView: View {
         }
         
         appState.isTranslating = true
-        TranslationService.shared.translate(text: inputText, source: sourceLang, target: targetLang) { result in
+        TranslationService.shared.translate(text: appState.translationInput, source: sourceLang, target: targetLang) { result in
             appState.translatedText = result
             appState.isTranslating = false
         }

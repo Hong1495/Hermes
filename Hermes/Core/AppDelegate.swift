@@ -52,6 +52,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         loadAndRegister(key: "shortcut_translate", defaultKey: .t, defaultMods: [.command, .shift], handler: { [weak self] in
              print("Translate Triggered")
              DispatchQueue.main.async {
+                 AppState.shared.clear()
                  AppState.shared.mode = .translation
                  self?.windowController?.showWindow()
              }
