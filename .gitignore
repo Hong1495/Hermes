@@ -1,0 +1,36 @@
+# Xcode
+#
+# gitignore contributors: scroll through to find your relevant project type
+# (e.g. Playgrounds, Swift, Objective-C, etc.)
+
+# Build artifacts
+build/
+DerivedData/
+
+# Personal settings
+*.xcuserdatad
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+xcuserdata/
+
+# App Store Connect / Fastlane
+# fastlane/report.xml
+# fastlane/Preview.html
+# fastlane/screenshots/**/*.png
+# fastlane/test_output
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+*.swp
+*~
+*.icloud
+
+# Hermes Specific
+Builds/
+*.zip
+hermes_capture.png

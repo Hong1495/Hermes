@@ -45,6 +45,9 @@ class ScreenshotService {
             if FileManager.default.fileExists(atPath: tempPath) {
                 let image = NSImage(contentsOfFile: tempPath)
                 DispatchQueue.main.async {
+                    if let img = image {
+                        AppState.shared.setScreenshot(img, mode: mode)
+                    }
                     completion(image)
                 }
             } else {

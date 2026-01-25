@@ -140,17 +140,40 @@ struct ScreenshotResultView: View {
         }
     }
 
+    private let areaPadding: CGFloat = 40
+    private let cornerRadius: CGFloat = 16
+    private let borderWidth: CGFloat = 1.0
+
     private func generateFinalImage() -> NSImage? {
         guard let original = appState.capturedImage else { return nil }
-        if annotationState.annotations.isEmpty { return original }
+
+        let isArea = appState.lastCaptureMode == .area || appState.lastCaptureMode == .screen
+        let isWindow = appState.lastCaptureMode == .window
 
         // Use CGImage for pixel-perfect control
         guard let cgOriginal = original.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             return original
         }
 
-        let pixelWidth = cgOriginal.width
-        let pixelHeight = cgOriginal.height
+        let pixelWidthOrig = cgOriginal.width
+        let pixelHeightOrig = cgOriginal.height
+
+        let scaleX = CGFloat(pixelWidthOrig) / original.size.width
+        let scaleY = CGFloat(pixelHeightOrig) / original.size.height
+
+        // Calculate final pixel dimensions including padding
+        var pixelWidth = pixelWidthOrig
+        var pixelHeight = pixelHeightOrig
+        var horizontalPaddingPixels: CGFloat = 0
+        var verticalPaddingPixels: CGFloat = 0
+
+        if isArea {
+            horizontalPaddingPixels = areaPadding * scaleX
+            verticalPaddingPixels = areaPadding * scaleY
+            pixelWidth += Int(horizontalPaddingPixels * 2)
+            pixelHeight += Int(verticalPaddingPixels * 2)
+        }
+
         let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? cgOriginal.colorSpace ?? CGColorSpaceCreateDeviceRGB()
 
         guard let context = CGContext(
@@ -163,28 +186,45 @@ struct ScreenshotResultView: View {
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else { return original }
 
-        // 1. Draw original image - pixel aligned
-        context.interpolationQuality = .none // No scaling should happen here, but be safe
-        context.draw(cgOriginal, in: CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight))
+        context.interpolationQuality = .high
 
-        // 2. Setup for Annotation Drawing (Points-based coordinate system)
-        // Adjust context to use points-based coordinates for annotations
-        let scaleX = CGFloat(pixelWidth) / original.size.width
-        let scaleY = CGFloat(pixelHeight) / original.size.height
+        // 1. Draw Background/Original Image/Border
+        let outerRect = CGRect(x: 0, y: 0, width: CGFloat(pixelWidth), height: CGFloat(pixelHeight))
 
-        // Create NSGraphicsContext for easier annotation drawing
+        if isArea {
+            let innerRect = outerRect.insetBy(dx: horizontalPaddingPixels, dy: verticalPaddingPixels)
+
+            context.saveGState()
+            let path = CGPath(roundedRect: innerRect, cornerWidth: cornerRadius * scaleX, cornerHeight: cornerRadius * scaleY, transform: nil)
+            context.addPath(path)
+            context.clip()
+
+            context.draw(cgOriginal, in: innerRect)
+            context.restoreGState()
+        } else if isWindow {
+            context.draw(cgOriginal, in: outerRect)
+
+            context.setStrokeColor(NSColor.separatorColor.cgColor)
+            context.setLineWidth(borderWidth * scaleX)
+            context.stroke(outerRect.insetBy(dx: (borderWidth * scaleX) / 2, dy: (borderWidth * scaleY) / 2))
+        } else {
+            context.draw(cgOriginal, in: outerRect)
+        }
+
+        // 2. Setup for Annotation Drawing
         NSGraphicsContext.saveGraphicsState()
         let nsContext = NSGraphicsContext(cgContext: context, flipped: false)
         NSGraphicsContext.current = nsContext
 
-        // Scale the coordinate system so we can draw in points
         context.scaleBy(x: scaleX, y: scaleY)
+        if isArea {
+            context.translateBy(x: areaPadding, y: areaPadding)
+        }
 
         for annotation in annotationState.annotations {
             let color = NSColor(annotation.color)
             color.setStroke()
 
-            // Normalized to Points
             let startX = annotation.normalizedStart.x * original.size.width
             let startY = (1.0 - annotation.normalizedStart.y) * original.size.height
             let endX = annotation.normalizedEnd.x * original.size.width
@@ -195,44 +235,24 @@ struct ScreenshotResultView: View {
 
             switch annotation.type {
             case .rectangle:
-                let rect = CGRect(
-                    x: min(startP.x, endP.x),
-                    y: min(startP.y, endP.y),
-                    width: abs(endP.x - startP.x),
-                    height: abs(endP.y - startP.y)
-                )
+                let rect = CGRect(x: min(startP.x, endP.x), y: min(startP.y, endP.y), width: abs(endP.x - startP.x), height: abs(endP.y - startP.y))
                 let path = NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4)
                 path.lineWidth = 3.0
-                color.setStroke()
                 path.stroke()
 
             case .arrow:
                 let path = NSBezierPath()
-                path.move(to: startP)
-                path.line(to: endP)
-
-                let angle = atan2(endP.y - startP.y, endP.x - startP.x)
-                let arrowLength: CGFloat = 20
-                let arrowAngle: CGFloat = .pi / 6
-
-                let p1 = CGPoint(x: endP.x - arrowLength * cos(angle - arrowAngle),
-                                 y: endP.y - arrowLength * sin(angle - arrowAngle))
-                let p2 = CGPoint(x: endP.x - arrowLength * cos(angle + arrowAngle),
-                                 y: endP.y - arrowLength * sin(angle + arrowAngle))
-
+                path.move(to: startP); path.line(to: endP)
+                let angle = atan2(endP.y - startP.y, endP.x - startP.x); let arrowLength: CGFloat = 20; let arrowAngle: CGFloat = .pi / 6
+                let p1 = CGPoint(x: endP.x - arrowLength * cos(angle - arrowAngle), y: endP.y - arrowLength * sin(angle - arrowAngle))
+                let p2 = CGPoint(x: endP.x - arrowLength * cos(angle + arrowAngle), y: endP.y - arrowLength * sin(angle + arrowAngle))
                 path.move(to: endP); path.line(to: p1)
                 path.move(to: endP); path.line(to: p2)
-
-                path.lineWidth = 3.0
-                color.setStroke()
-                path.stroke()
+                path.lineWidth = 3.0; path.stroke()
 
             case .text:
                 let text = annotation.text as NSString
-                let attrs: [NSAttributedString.Key: Any] = [
-                    .foregroundColor: color,
-                    .font: NSFont.systemFont(ofSize: 18, weight: .medium)
-                ]
+                let attrs: [NSAttributedString.Key: Any] = [.foregroundColor: color, .font: NSFont.systemFont(ofSize: 18, weight: .medium)]
                 text.draw(at: startP, withAttributes: attrs)
             }
         }
@@ -240,13 +260,11 @@ struct ScreenshotResultView: View {
         NSGraphicsContext.restoreGraphicsState()
 
         guard let finalCG = context.makeImage() else { return original }
-        let finalImage = NSImage(cgImage: finalCG, size: original.size)
-        // Explicitly transfer the bitmap rep to preserve metadata capability
-        if let rep = NSBitmapImageRep(cgImage: finalCG) as? NSBitmapImageRep {
-            // Set size to match original points
-            rep.size = original.size
-            finalImage.addRepresentation(rep)
-        }
+        let finalSizePoints = isArea ? CGSize(width: original.size.width + areaPadding * 2, height: original.size.height + areaPadding * 2) : original.size
+        let finalImage = NSImage(cgImage: finalCG, size: finalSizePoints)
+        let rep = NSBitmapImageRep(cgImage: finalCG)
+        rep.size = finalSizePoints
+        finalImage.addRepresentation(rep)
         return finalImage
     }
 
@@ -278,7 +296,6 @@ struct ScreenshotResultView: View {
         guard let bitmapRep = rep else { return nil }
 
         // Ensure DPI metadata is present (important for Retina screenshots)
-        let dpi: CGFloat = 144 // Default for 2x Retina, but we can try to be more precise
         if bitmapRep.pixelsWide > 0 && bitmapRep.size.width > 0 {
             let detectedDpi = (CGFloat(bitmapRep.pixelsWide) / bitmapRep.size.width) * 72.0
             let properties: [NSBitmapImageRep.PropertyKey: Any] = [
