@@ -2,14 +2,15 @@ import Cocoa
 import SwiftUI
 
 /// 浮动窗口控制器，管理截图结果和翻译界面的显示
+@MainActor
 class FloatingWindowController: NSObject, NSWindowDelegate {
     
     // MARK: - Properties
     
     var panel: FloatingPanel!
     
-    private let translationSize = NSSize(width: 500, height: 550)
-    private let screenshotSize = NSSize(width: 900, height: 600)
+    private let translationSize = NSSize(width: 820, height: 640)
+    private let screenshotSize = NSSize(width: 1320, height: 860)
     
     // MARK: - Initialization
     
@@ -85,7 +86,10 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
         if let saved = UserDefaults.standard.string(forKey: "WindowSize_Screenshot") {
             let size = NSSizeFromString(saved)
             if size.width > 200 && size.height > 200 {
-                return size
+                return NSSize(
+                    width: max(size.width, screenshotSize.width),
+                    height: max(size.height, screenshotSize.height)
+                )
             }
         }
         return screenshotSize
@@ -97,7 +101,7 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
         
         var origin: NSPoint
         if mode == .translation {
-            origin = NSPoint(x: mouseLoc.x - size.width / 2, y: mouseLoc.y - size.height - 10)
+            origin = NSPoint(x: mouseLoc.x - size.width / 2, y: mouseLoc.y - size.height / 2)
         } else {
             origin = NSPoint(x: screenRect.midX - size.width / 2, y: screenRect.midY - size.height / 2)
         }
@@ -111,17 +115,18 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
     
     private func configureWindowConstraints(for mode: AppMode) {
         if mode == .translation {
-            panel.minSize = translationSize
-            panel.maxSize = translationSize
+            panel.minSize = NSSize(width: 720, height: 560)
+            panel.maxSize = NSSize(width: 1100, height: 900)
         } else {
-            panel.minSize = NSSize(width: 600, height: 400)
-            panel.maxSize = NSSize(width: 1600, height: 1200)
+            panel.minSize = NSSize(width: 1180, height: 760)
+            panel.maxSize = NSSize(width: 1800, height: 1280)
         }
     }
     
     // MARK: - Event Monitoring
     
     private var localMonitor: Any?
+    private var globalMonitor: Any?
     private var activationObserver: NSObjectProtocol?
     
     private func setupEventMonitors() {
@@ -134,14 +139,15 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
                 object: nil,
                 queue: .main
             ) { [weak self] notification in
-                guard let self = self,
-                      self.panel.isVisible,
-                      AppState.shared.mode == .translation else { return }
-                
-                if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
-                    // 只在切换到普通应用时关闭
-                    if app.activationPolicy == .regular {
-                        self.closeWindow()
+                let activatedApp = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                Task { @MainActor [weak self] in
+                    guard let self = self,
+                          self.panel.isVisible else { return }
+
+                    if let app = activatedApp {
+                        if app.activationPolicy == .regular {
+                            self.closeWindow()
+                        }
                     }
                 }
             }
@@ -150,16 +156,66 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
         // 2. Local Monitor: 监听应用内的点击
         if localMonitor == nil {
             localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-                guard let self = self else { return event }
-                
-                // 如果点击发生在窗口外部（但仍属于本应用，如状态栏图标），也关闭
-                if self.panel.isVisible && AppState.shared.mode == .translation {
-                    if event.window != self.panel {
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+
+                    if self.panel.isVisible && !self.isManagedWindow(event.window) {
                         self.closeWindow()
                     }
                 }
                 return event
             }
+        }
+
+        if globalMonitor == nil {
+            globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self = self, self.panel.isVisible else { return }
+
+                    let mouseLocation = NSEvent.mouseLocation
+                    if !self.isPointInsideManagedWindows(mouseLocation) {
+                        self.closeWindow()
+                    }
+                }
+            }
+        }
+    }
+
+    private func isManagedWindow(_ window: NSWindow?) -> Bool {
+        guard let window else { return false }
+
+        if window == panel {
+            return true
+        }
+
+        if panel.childWindows?.contains(where: { $0 == window }) == true {
+            return true
+        }
+
+        if window.parent == panel {
+            return true
+        }
+
+        // SwiftUI popover windows are not always attached as child windows immediately.
+        if NSStringFromClass(type(of: window)).contains("Popover") {
+            return true
+        }
+
+        return false
+    }
+
+    private func isPointInsideManagedWindows(_ point: NSPoint) -> Bool {
+        if panel.frame.contains(point) {
+            return true
+        }
+
+        if let childWindows = panel.childWindows,
+           childWindows.contains(where: { $0.isVisible && $0.frame.contains(point) }) {
+            return true
+        }
+
+        return NSApp.windows.contains { window in
+            isManagedWindow(window) && window.isVisible && window.frame.contains(point)
         }
     }
     
@@ -172,6 +228,11 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
         if let monitor = localMonitor {
             NSEvent.removeMonitor(monitor)
             localMonitor = nil
+        }
+
+        if let monitor = globalMonitor {
+            NSEvent.removeMonitor(monitor)
+            globalMonitor = nil
         }
     }
     

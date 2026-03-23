@@ -1,31 +1,55 @@
 import SwiftUI
 
-/// 应用根视图，根据当前模式切换显示截图结果或翻译界面
 struct RootView: View {
-    @ObservedObject var appState = AppState.shared
-    
+    @ObservedObject private var appState = AppState.shared
+    @StateObject private var annotationState = AnnotationState()
+
     var body: some View {
-        ZStack {
-            // 毛玻璃背景
-            VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
-                .ignoresSafeArea()
-            
-            // 内容区域
+        ZStack(alignment: .topTrailing) {
+            // Main content fills the entire panel
             Group {
                 switch appState.mode {
                 case .actions:
-                    ScreenshotResultView()
+                    ScreenshotResultView(annotationState: annotationState)
                 case .translation:
                     TranslationView()
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Floating controls overlay (close + status)
+            HStack(spacing: 8) {
+                if appState.isRecognizing || appState.isTranslating {
+                    HStack(spacing: 5) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text(appState.isRecognizing ? "识别中" : "翻译中")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                }
+
+
+            }
+            .padding(10)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.opacity(0.001))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        .background(Theme.Colors.background)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.large, style: .continuous))
+        .shadow(
+            color: Theme.Shadows.panel.color,
+            radius: Theme.Shadows.panel.radius,
+            x: Theme.Shadows.panel.x,
+            y: Theme.Shadows.panel.y
         )
+        .contentShape(Rectangle())
+        .gesture(WindowDragGesture())
+        .onChange(of: appState.capturedImage) { _, _ in
+            annotationState.clear()
+        }
     }
 }

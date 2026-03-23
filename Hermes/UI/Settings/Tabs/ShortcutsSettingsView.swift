@@ -15,6 +15,7 @@ struct ShortcutsSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .hideScrollIndicators()
         .padding(.vertical)
     }
 }

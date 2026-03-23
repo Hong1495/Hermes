@@ -42,18 +42,15 @@ class ScreenshotService {
         task.arguments = arguments
 
         task.terminationHandler = { _ in
+            let image: NSImage?
             if FileManager.default.fileExists(atPath: tempPath) {
-                let image = NSImage(contentsOfFile: tempPath)
-                DispatchQueue.main.async {
-                    if let img = image {
-                        AppState.shared.setScreenshot(img, mode: mode)
-                    }
-                    completion(image)
-                }
+                image = NSImage(contentsOfFile: tempPath)
             } else {
-                DispatchQueue.main.async {
-                    completion(nil)
-                }
+                image = nil
+            }
+
+            DispatchQueue.main.async {
+                completion(image)
             }
         }
 

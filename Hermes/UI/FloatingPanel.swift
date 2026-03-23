@@ -14,7 +14,7 @@ class FloatingPanel: NSPanel {
         // 视觉配置
         self.backgroundColor = .clear
         self.hasShadow = true
-        self.isMovableByWindowBackground = false  // 禁用背景拖动，防止与标注手势冲突
+        self.isMovableByWindowBackground = false
     }
     
     // MARK: - Window Behavior Overrides

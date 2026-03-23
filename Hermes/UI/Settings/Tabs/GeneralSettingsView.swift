@@ -6,7 +6,6 @@ struct GeneralSettingsView: View {
     @AppStorage("hideMenuBarIcon") var hideMenuBarIcon = false
     @AppStorage("appTheme") var appTheme: String = "System" // System, Light, Dark
     @AppStorage("defaultSavePath") var defaultSavePath: String = ""
-    @AppStorage("autoTranslateMode") var autoTranslateMode = false
     
     var body: some View {
         Form {
@@ -42,13 +41,6 @@ struct GeneralSettingsView: View {
                 }
             }
             
-            Section("翻译设置") {
-                Toggle("智能模式 (自动检测)", isOn: $autoTranslateMode)
-                Text("开启后, 输入中文将自动翻译为英文, 输入英文或其他语言将自动翻译为中文。")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
             Section("保存设置") {
                 HStack {
                     Text("默认保存路径")
@@ -72,6 +64,7 @@ struct GeneralSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .hideScrollIndicators()
     }
     
     private func updateAppearance(_ theme: String) {
