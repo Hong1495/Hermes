@@ -11,8 +11,6 @@ final class AppState: ObservableObject {
 
     @Published var mode: AppMode = .actions
     @Published var capturedImage: NSImage?
-    @Published var ocrText: String = ""
-    @Published var isRecognizing: Bool = false
     @Published var translatedText: String = ""
     @Published var translationInput: String = ""
     @Published var isTranslating: Bool = false
@@ -24,21 +22,10 @@ final class AppState: ObservableObject {
         capturedImage = image
         lastCaptureMode = mode
         self.mode = .actions
-        ocrText = ""
-        isRecognizing = true
         translationInput = ""
         translatedText = ""
         translationError = nil
         isTranslating = false
-
-        OCRService.shared.recognizeText(from: image) { [weak self] text in
-            let normalized = text?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .nilIfEmpty
-
-            self?.ocrText = normalized ?? "未识别到文本"
-            self?.isRecognizing = false
-        }
     }
 
     func prepareForTranslationWorkspace() {
@@ -54,26 +41,12 @@ final class AppState: ObservableObject {
         translationFocusRequestID = UUID()
     }
 
-    func populateTranslationInputFromOCR() {
-        let normalized = ocrText
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nilIfEmpty
-
-        guard let normalized, normalized != "未识别到文本" else { return }
-
-        translationInput = normalized
-        mode = .translation
-        requestTranslationFocus()
-    }
-
     func clearWorkspace(preserveImage: Bool = false) {
         if !preserveImage {
             capturedImage = nil
             lastCaptureMode = .area
         }
 
-        ocrText = ""
-        isRecognizing = false
         translatedText = ""
         translationInput = ""
         translationError = nil
@@ -82,11 +55,5 @@ final class AppState: ObservableObject {
 
     func clear() {
         clearWorkspace()
-    }
-}
-
-private extension String {
-    var nilIfEmpty: String? {
-        isEmpty ? nil : self
     }
 }

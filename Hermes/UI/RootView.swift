@@ -17,25 +17,20 @@ struct RootView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // Floating controls overlay (close + status)
-            HStack(spacing: 8) {
-                if appState.isRecognizing || appState.isTranslating {
-                    HStack(spacing: 5) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text(appState.isRecognizing ? "识别中" : "翻译中")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.ultraThinMaterial)
-                    .clipShape(Capsule())
+            if appState.isTranslating {
+                HStack(spacing: 5) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("翻译中")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
                 }
-
-
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .padding(10)
             }
-            .padding(10)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.Colors.background)

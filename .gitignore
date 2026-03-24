@@ -6,6 +6,9 @@
 # Build artifacts
 build/
 DerivedData/
+Release/
+*.app.dSYM
+build_output.txt
 
 # Personal settings
 *.xcuserdatad
@@ -26,6 +29,8 @@ xcuserdata/
 
 # macOS
 .DS_Store
+.AppleDouble
+.LSOverride
 *.swp
 *~
 *.icloud
@@ -34,3 +39,5 @@ xcuserdata/
 Builds/
 *.zip
 hermes_capture.png
+.agent/
+.claude/

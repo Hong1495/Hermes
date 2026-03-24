@@ -9,7 +9,12 @@ struct TranslationView: View {
     @State private var pendingTranslationTask: Task<Void, Never>?
     @State private var translationRequestID = UUID()
     @State private var translationConfig: TranslationSession.Configuration?
+    @State private var targetSelectionWasManual = false
+    @State private var isApplyingAutomaticTargetSelection = false
     @FocusState private var isInputFocused: Bool
+
+    private let editorHorizontalInset: CGFloat = 12
+    private let editorVerticalInset: CGFloat = 10
 
     private let languages: [(label: String, code: String)] = [
         ("自动识别", "auto"),
@@ -88,6 +93,9 @@ struct TranslationView: View {
             scheduleTranslation(immediate: true)
         }
         .onChange(of: targetLang) { _, _ in
+            if !isApplyingAutomaticTargetSelection {
+                targetSelectionWasManual = true
+            }
             scheduleTranslation(immediate: true)
         }
         .onDisappear {
@@ -137,21 +145,22 @@ struct TranslationView: View {
             .padding(.bottom, 4)
 
             ZStack(alignment: .topLeading) {
-                TextEditor(text: $appState.translationInput)
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .scrollContentBackground(.hidden)
-                    .scrollIndicators(.hidden)
-                    .hideScrollIndicators()
-                    .padding(8)
+                AlignedTextEditor(
+                    text: $appState.translationInput,
+                    isFocused: isInputFocused,
+                    font: .systemFont(ofSize: 14, weight: .regular),
+                    textColor: NSColor(Theme.Colors.textPrimary),
+                    contentInset: NSSize(width: editorHorizontalInset, height: editorVerticalInset)
+                )
+                .hideScrollIndicators()
                     .focused($isInputFocused)
 
                 if appState.translationInput.isEmpty {
                     Text("输入或粘贴文本...")
                         .font(.system(size: 14, weight: .regular))
                         .foregroundStyle(Theme.Colors.textTertiary)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 14)
+                        .padding(.leading, editorHorizontalInset)
+                        .padding(.top, editorVerticalInset)
                         .allowsHitTesting(false)
                 }
             }
@@ -194,8 +203,9 @@ struct TranslationView: View {
                 }
                 .font(.system(size: 14, weight: .regular))
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.horizontal, editorHorizontalInset)
+                .padding(.top, editorVerticalInset)
+                .padding(.bottom, editorVerticalInset)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
@@ -246,18 +256,18 @@ struct TranslationView: View {
 
     // MARK: - Translation Logic
 
-    private func resolveLanguages(for text: String) -> (source: Locale.Language, target: Locale.Language, newTargetCode: String?) {
+    private func resolveLanguages(for text: String) -> (source: Locale.Language, target: Locale.Language, suggestedTargetCode: String?) {
         if #available(macOS 15.0, *) {
             if sourceLang == "auto" {
                 let service = TranslationService.shared
                 let detected = service.detectLanguage(for: text)
 
                 if service.isChinese(detected) {
-                    let newTarget = "en"
-                    return (detected, Locale.Language(identifier: "en"), targetLang != newTarget ? newTarget : nil)
+                    let automaticTarget = targetSelectionWasManual ? targetLang : "en"
+                    return (detected, convertToLanguage(automaticTarget), targetSelectionWasManual ? nil : automaticTarget)
                 } else {
-                    let newTarget = "zh-CN"
-                    return (detected, Locale.Language(identifier: "zh_Hans"), targetLang != newTarget ? newTarget : nil)
+                    let automaticTarget = targetSelectionWasManual ? targetLang : "zh-CN"
+                    return (detected, convertToLanguage(automaticTarget), targetSelectionWasManual ? nil : automaticTarget)
                 }
             }
         }
@@ -269,11 +279,14 @@ struct TranslationView: View {
 
         let trimmed = appState.translationInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
+            translationRequestID = UUID()
             appState.translatedText = ""
             appState.translationError = nil
             appState.isTranslating = false
             return
         }
+
+        translationRequestID = UUID()
 
         let delay: UInt64 = immediate ? 0 : 450_000_000
 
@@ -292,11 +305,16 @@ struct TranslationView: View {
     }
 
     private func triggerTranslation(for text: String) {
-        let (source, target, newTargetCode) = resolveLanguages(for: text)
+        let (source, target, suggestedTargetCode) = resolveLanguages(for: text)
 
-        if let newCode = newTargetCode {
+        if let suggestedTargetCode,
+           suggestedTargetCode != targetLang {
+            isApplyingAutomaticTargetSelection = true
             withAnimation(.easeInOut(duration: 0.2)) {
-                targetLang = newCode
+                targetLang = suggestedTargetCode
+            }
+            DispatchQueue.main.async {
+                isApplyingAutomaticTargetSelection = false
             }
             return
         }
@@ -357,6 +375,7 @@ struct TranslationView: View {
         let originalSource = sourceLang
         sourceLang = targetLang
         targetLang = originalSource
+        targetSelectionWasManual = true
     }
 
     private func pasteFromClipboard() {
