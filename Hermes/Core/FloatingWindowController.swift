@@ -37,6 +37,7 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
     }
     
     func closeWindow() {
+        panel.alphaValue = 0
         panel.orderOut(nil)
         removeEventMonitors()
     }

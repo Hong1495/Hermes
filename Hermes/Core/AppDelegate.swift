@@ -85,8 +85,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         print("📸 [AppDelegate] handleCapture called with mode: \(mode)")
         windowController?.closeWindow()
 
-        // Delay slightly to ensure window animation finishes and isn't captured or reappearing
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+        // 等窗口完全关闭 + 动画结束，确保 screencapture 不会选中 Hermes 的面板
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             print("📸 [AppDelegate] Starting capture task...")
             ScreenshotService.shared.capture(mode: mode) { image in
                 print("📸 [AppDelegate] Capture callback received - Image is nil: \(image == nil)")
@@ -127,8 +127,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 button.image = image
             } else {
                 // 使用 SF Symbol 作为后备
-                let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
-                if let symbol = NSImage(systemSymbolName: "text.bubble", accessibilityDescription: "Hermes")?.withSymbolConfiguration(config) {
+                let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+                if let symbol = NSImage(systemSymbolName: "shoe.fill", accessibilityDescription: "Hermes")?.withSymbolConfiguration(config) {
                     symbol.isTemplate = true
                     button.image = symbol
                 } else {

@@ -8,8 +8,8 @@ class FloatingPanel: NSPanel {
         
         // 窗口行为配置
         self.isFloatingPanel = true
-        self.level = .screenSaver  // Level 1000，确保覆盖所有应用窗口
-        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        self.level = .floating  // 足够覆盖常规窗口即可，screenSaver 会干扰 screencapture
+        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         
         // 视觉配置
         self.backgroundColor = .clear
