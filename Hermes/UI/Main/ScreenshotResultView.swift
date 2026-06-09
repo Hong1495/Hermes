@@ -5,6 +5,9 @@ struct ScreenshotResultView: View {
     @ObservedObject private var appState = AppState.shared
     @ObservedObject var annotationState: AnnotationState
 
+    @State private var showBorder = false
+    @State private var showCornerRadius = false
+
     var body: some View {
         VStack(spacing: 0) {
             // Toolbar: directly at top, no extra wrapping
@@ -24,8 +27,26 @@ struct ScreenshotResultView: View {
     private var annotationBar: some View {
         HStack(alignment: .center, spacing: Theme.Spacing.small) {
             annotationTools
+
+            // 导出样式开关
+            styleToggles
+
             Spacer(minLength: Theme.Spacing.small)
             utilityButtons
+        }
+    }
+
+    private var styleToggles: some View {
+        HStack(spacing: 6) {
+            Toggle("边框", isOn: $showBorder)
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .disabled(!hasImage)
+
+            Toggle("圆角", isOn: $showCornerRadius)
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .disabled(!hasImage)
         }
     }
 
@@ -183,11 +204,10 @@ struct ScreenshotResultView: View {
         let scaleX = CGFloat(pixelWidth) / max(original.size.width, 1)
         let scaleY = CGFloat(pixelHeight) / max(original.size.height, 1)
 
-        let shouldDecorateAreaCapture = appState.lastCaptureMode == .area
         let shouldOutlineWindowCapture = appState.lastCaptureMode == .window
         let finalSizePoints = CGSize(
-            width: original.size.width + (shouldDecorateAreaCapture ? exportPadding * 2 : 0),
-            height: original.size.height + (shouldDecorateAreaCapture ? exportPadding * 2 : 0)
+            width: original.size.width + (showBorder ? exportPadding * 2 : 0),
+            height: original.size.height + (showBorder ? exportPadding * 2 : 0)
         )
 
         let finalPixelWidth = Int(round(finalSizePoints.width * scaleX))
@@ -215,14 +235,17 @@ struct ScreenshotResultView: View {
         context.scaleBy(x: scaleX, y: scaleY)
 
         let imageOrigin = CGPoint(
-            x: shouldDecorateAreaCapture ? exportPadding : 0,
-            y: shouldDecorateAreaCapture ? exportPadding : 0
+            x: showBorder ? exportPadding : 0,
+            y: showBorder ? exportPadding : 0
         )
         let imageRect = CGRect(origin: imageOrigin, size: original.size)
 
-        if shouldDecorateAreaCapture {
+        if showBorder {
             context.setFillColor(NSColor(Theme.Colors.panelElevated).cgColor)
             context.fill(CGRect(origin: .zero, size: finalSizePoints))
+        }
+
+        if showCornerRadius {
             let path = NSBezierPath(
                 roundedRect: imageRect,
                 xRadius: exportCornerRadius,

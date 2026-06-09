@@ -307,6 +307,25 @@ struct TranslationView: View {
     private func triggerTranslation(for text: String) {
         let (source, target, suggestedTargetCode) = resolveLanguages(for: text)
 
+        // 异步预检查语言包是否已安装，避免 TranslationSession 弹出系统下载框
+        Task {
+            let status = await LanguageAvailability().status(from: source, to: target)
+            guard status == .installed else {
+                await MainActor.run {
+                    appState.translatedText = ""
+                    appState.translationError = "未安装「\(source.languageCode?.identifier ?? "?") → \(target.languageCode?.identifier ?? "?")」翻译语言包，请在系统设置 → 通用 → 翻译与实时翻译中下载。"
+                    appState.isTranslating = false
+                }
+                return
+            }
+
+            await MainActor.run {
+                applyTranslationConfig(source: source, target: target, suggestedTargetCode: suggestedTargetCode)
+            }
+        }
+    }
+
+    private func applyTranslationConfig(source: Locale.Language, target: Locale.Language, suggestedTargetCode: String?) {
         if let suggestedTargetCode,
            suggestedTargetCode != targetLang {
             isApplyingAutomaticTargetSelection = true

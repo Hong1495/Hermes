@@ -47,7 +47,6 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
         
         // 确保清理旧的监听器
         removeEventMonitors()
-        setupEventMonitors()
         
         
         let mode = AppState.shared.mode
@@ -67,6 +66,11 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             self?.panel.orderFrontRegardless()
             NSApp.activate(ignoringOtherApps: true)
+        }
+
+        // 窗口显示后再设置事件监听器，避免 screencapture 残留事件导致的时序竞争
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.setupEventMonitors()
         }
     }
     
