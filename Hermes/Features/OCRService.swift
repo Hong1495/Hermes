@@ -35,7 +35,7 @@ class OCRService {
         }
         
         request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = false
+        request.usesLanguageCorrection = true
         
         // Supports Chinese and English
         request.recognitionLanguages = ["zh-Hans", "en-US"]

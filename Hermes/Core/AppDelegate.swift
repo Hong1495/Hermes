@@ -86,7 +86,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowController?.closeWindow()
 
         // 等窗口完全关闭 + 动画结束，确保 screencapture 不会选中 Hermes 的面板
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             print("📸 [AppDelegate] Starting capture task...")
             ScreenshotService.shared.capture(mode: mode) { image in
                 print("📸 [AppDelegate] Capture callback received - Image is nil: \(image == nil)")
@@ -171,7 +171,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func ocrCaptureSilent() {
         windowController?.closeWindow()
         // Wait for window to close
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             ScreenshotService.shared.capture(mode: .area) { image in
                 guard let image = image else { return }
                 DispatchQueue.main.async {
