@@ -6,7 +6,11 @@ struct GeneralSettingsView: View {
     @AppStorage("hideMenuBarIcon") var hideMenuBarIcon = false
     @AppStorage("appTheme") var appTheme: String = "System" // System, Light, Dark
     @AppStorage("defaultSavePath") var defaultSavePath: String = ""
-    
+    @AppStorage("ocrLanguages") var ocrLanguages: String = "zh-Hans,en-US"
+
+    /// OCR 语言选择的镜像数组（从 ocrLanguages 字符串解析）
+    @State private var selectedOCRLanguages: Set<String> = []
+
     var body: some View {
         Form {
             Section {
@@ -19,17 +23,16 @@ struct GeneralSettingsView: View {
                                 try SMAppService.mainApp.unregister()
                             }
                         } catch {
-                            print("Failed to update login item: \(error)")
                             // Revert the toggle if operation failed
                             launchAtLogin = !newValue
                         }
                     }
-                
+
                 Toggle("隐藏菜单栏图标", isOn: $hideMenuBarIcon)
                     .onChange(of: hideMenuBarIcon) { _, newValue in
                         NotificationCenter.default.post(name: NSNotification.Name("UpdateMenuBarState"), object: nil)
                     }
-                
+
                 Picker("外观", selection: $appTheme) {
                     Text("跟随系统").tag("System")
                     Text("浅色模式").tag("Light")
@@ -40,7 +43,27 @@ struct GeneralSettingsView: View {
                     updateAppearance(newValue)
                 }
             }
-            
+
+            Section("OCR 取词") {
+                Text("选择静默 OCR（⌘⇧O）支持识别的语言，建议按常用程度勾选以提升准确率。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+
+                ForEach(OCRService.supportedLanguages, id: \.code) { language in
+                    Toggle(language.label, isOn: Binding(
+                        get: { selectedOCRLanguages.contains(language.code) },
+                        set: { isSelected in
+                            if isSelected {
+                                selectedOCRLanguages.insert(language.code)
+                            } else {
+                                selectedOCRLanguages.remove(language.code)
+                            }
+                            persistOCRLanguages()
+                        }
+                    ))
+                }
+            }
+
             Section("保存设置") {
                 HStack {
                     Text("默认保存路径")
@@ -49,12 +72,12 @@ struct GeneralSettingsView: View {
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    
+
                     Button("选择...") {
                         selectFolder()
                     }
                 }
-                
+
                 if !defaultSavePath.isEmpty {
                     Button("重置为桌面") {
                         defaultSavePath = ""
@@ -65,6 +88,27 @@ struct GeneralSettingsView: View {
         }
         .formStyle(.grouped)
         .hideScrollIndicators()
+        .onAppear {
+            selectedOCRLanguages = Set(ocrLanguages.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) })
+            // 兜底：若全部被清空，保留默认中英文
+            if selectedOCRLanguages.isEmpty {
+                selectedOCRLanguages = ["zh-Hans", "en-US"]
+                persistOCRLanguages()
+            }
+        }
+    }
+
+    /// 将多选结果写回 AppStorage（逗号分隔）
+    private func persistOCRLanguages() {
+        if selectedOCRLanguages.isEmpty {
+            ocrLanguages = "zh-Hans,en-US"
+        } else {
+            // 按 supportedLanguages 的固定顺序输出，避免每次保存顺序抖动
+            let ordered = OCRService.supportedLanguages
+                .map(\.code)
+                .filter { selectedOCRLanguages.contains($0) }
+            ocrLanguages = ordered.joined(separator: ",")
+        }
     }
     
     private func updateAppearance(_ theme: String) {
@@ -98,7 +142,7 @@ struct GeneralSettingsView: View {
                     )
                     UserDefaults.standard.set(bookmarkData, forKey: "defaultSavePathBookmark")
                 } catch {
-                    print("Failed to create bookmark: \(error)")
+                    // 创建 bookmark 失败时仅保留路径，不影响保存功能
                 }
             }
         }

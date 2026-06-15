@@ -257,18 +257,16 @@ struct TranslationView: View {
     // MARK: - Translation Logic
 
     private func resolveLanguages(for text: String) -> (source: Locale.Language, target: Locale.Language, suggestedTargetCode: String?) {
-        if #available(macOS 15.0, *) {
-            if sourceLang == "auto" {
-                let service = TranslationService.shared
-                let detected = service.detectLanguage(for: text)
+        if sourceLang == "auto" {
+            let service = TranslationService.shared
+            let detected = service.detectLanguage(for: text)
 
-                if service.isChinese(detected) {
-                    let automaticTarget = targetSelectionWasManual ? targetLang : "en"
-                    return (detected, convertToLanguage(automaticTarget), targetSelectionWasManual ? nil : automaticTarget)
-                } else {
-                    let automaticTarget = targetSelectionWasManual ? targetLang : "zh-CN"
-                    return (detected, convertToLanguage(automaticTarget), targetSelectionWasManual ? nil : automaticTarget)
-                }
+            if service.isChinese(detected) {
+                let automaticTarget = targetSelectionWasManual ? targetLang : "en"
+                return (detected, convertToLanguage(automaticTarget), targetSelectionWasManual ? nil : automaticTarget)
+            } else {
+                let automaticTarget = targetSelectionWasManual ? targetLang : "zh-CN"
+                return (detected, convertToLanguage(automaticTarget), targetSelectionWasManual ? nil : automaticTarget)
             }
         }
         return (convertToLanguage(sourceLang), convertToLanguage(targetLang), nil)
@@ -359,23 +357,16 @@ struct TranslationView: View {
         let requestID = translationRequestID
 
         do {
-            if #available(macOS 15.0, *) {
-                let result = try await TranslationService.shared.translate(
-                    text: trimmed,
-                    using: session
-                )
+            let result = try await TranslationService.shared.translate(
+                text: trimmed,
+                using: session
+            )
 
-                await MainActor.run {
-                    guard translationRequestID == requestID else { return }
-                    appState.translatedText = result.text
-                    appState.translationError = nil
-                    appState.isTranslating = false
-                }
-            } else {
-                await MainActor.run {
-                    appState.translationError = "原生翻译需要 macOS 15.0 或更高版本。"
-                    appState.isTranslating = false
-                }
+            await MainActor.run {
+                guard translationRequestID == requestID else { return }
+                appState.translatedText = result.text
+                appState.translationError = nil
+                appState.isTranslating = false
             }
         } catch {
             guard !Task.isCancelled else { return }

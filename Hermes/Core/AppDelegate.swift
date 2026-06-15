@@ -82,24 +82,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func handleCapture(mode: ScreenshotService.CaptureMode) {
-        print("📸 [AppDelegate] handleCapture called with mode: \(mode)")
         windowController?.closeWindow()
 
         // 等窗口完全关闭 + 动画结束，确保 screencapture 不会选中 Hermes 的面板
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            print("📸 [AppDelegate] Starting capture task...")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             ScreenshotService.shared.capture(mode: mode) { image in
-                print("📸 [AppDelegate] Capture callback received - Image is nil: \(image == nil)")
                 guard let image = image else {
-                    print("⚠️ [AppDelegate] Capture failed or cancelled by user.")
+                    // 用户取消截图，静默处理
                     return
                 }
 
                 DispatchQueue.main.async {
-                    print("📸 [AppDelegate] Setting mode and screenshot in AppState...")
                     AppState.shared.setScreenshot(image, mode: mode)
-
-                    print("📸 [AppDelegate] Requesting windowController to showWindow...")
                     self.windowController?.showWindow()
                 }
             }
@@ -170,18 +164,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func ocrCaptureSilent() {
         windowController?.closeWindow()
-        // Wait for window to close
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+        // 与 handleCapture 一致，等面板完全关闭，避免截到自身
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             ScreenshotService.shared.capture(mode: .area) { image in
                 guard let image = image else { return }
                 DispatchQueue.main.async {
-                    OCRService.shared.recognizeText(from: image) { text in
-                        if let text = text, !text.isEmpty {
-                            let pb = NSPasteboard.general
-                            pb.clearContents()
-                            pb.setString(text, forType: .string)
-                            NSSound(named: "Glass")?.play()
+                    OCRService.shared.recognizeText(from: image) { result in
+                        let text = result?.text
+                        guard let text = text, !text.isEmpty else {
+                            // OCR 无结果：用低沉的失败音反馈，与成功音区分
+                            NSSound(named: "Basso")?.play()
+                            return
                         }
+                        let pb = NSPasteboard.general
+                        pb.clearContents()
+                        pb.setString(text, forType: .string)
+                        NSSound(named: "Glass")?.play()
                     }
                 }
             }

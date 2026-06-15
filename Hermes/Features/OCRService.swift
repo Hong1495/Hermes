@@ -3,52 +3,75 @@ import Vision
 
 class OCRService {
     static let shared = OCRService()
-    
+
     private init() {}
 
-    private func completeOnMain(_ completion: @escaping (String?) -> Void, with text: String?) {
+    /// 可选语言：与设置页 OCR 语言多选保持一致
+    static let supportedLanguages: [(code: String, label: String)] = [
+        ("zh-Hans", "简体中文"),
+        ("zh-Hant", "繁體中文"),
+        ("en-US", "英语"),
+        ("ja-JP", "日语"),
+        ("ko-KO", "韩语"),
+        ("fr-FR", "法语"),
+        ("es-ES", "西班牙语"),
+        ("de-DE", "德语")
+    ]
+
+    /// 读取用户在设置中选择的 OCR 语言，逗号分隔；为空则用默认中英文
+    private var configuredLanguages: [String] {
+        let stored = UserDefaults.standard.string(forKey: "ocrLanguages") ?? "zh-Hans,en-US"
+        let codes = stored
+            .split(separator: ",")
+            .map { String($0).trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return codes.isEmpty ? ["zh-Hans", "en-US"] : codes
+    }
+
+    private func completeOnMain(_ completion: @escaping (OCRResult?) -> Void, with result: OCRResult?) {
         DispatchQueue.main.async {
-            completion(text)
+            completion(result)
         }
     }
-    
-    func recognizeText(from image: NSImage, completion: @escaping (String?) -> Void) {
+
+    func recognizeText(from image: NSImage, completion: @escaping (OCRResult?) -> Void) {
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             completeOnMain(completion, with: nil)
             return
         }
-        
+
         let request = VNRecognizeTextRequest { request, error in
             guard error == nil else {
-                print("OCR Error: \(String(describing: error))")
                 self.completeOnMain(completion, with: nil)
                 return
             }
-            
+
             guard let observations = request.results as? [VNRecognizedTextObservation] else {
                 self.completeOnMain(completion, with: nil)
                 return
             }
-            
+
             let text = observations.compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
-            self.completeOnMain(completion, with: text)
+            self.completeOnMain(completion, with: OCRResult(text: text))
         }
-        
+
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
-        
-        // Supports Chinese and English
-        request.recognitionLanguages = ["zh-Hans", "en-US"]
-        
+        request.recognitionLanguages = configuredLanguages
+
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-        
+
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 try handler.perform([request])
             } catch {
-                print("Failed to perform OCR: \(error)")
                 self.completeOnMain(completion, with: nil)
             }
         }
     }
+}
+
+/// OCR 识别结果
+struct OCRResult {
+    let text: String
 }

@@ -58,7 +58,7 @@ final class TranslationService {
 
     // MARK: - Translation
 
-    /// 用于 translationTask 方式：使用 SwiftUI 提供的 session 进行翻译
+    /// 使用 SwiftUI .translationTask 注入的 session 进行翻译
     func translate(text: String, using session: TranslationSession) async throws -> TranslationResult {
         let response = try await session.translate(text)
 
@@ -71,12 +71,5 @@ final class TranslationService {
             text: translated,
             detectedSourceLanguage: response.sourceLanguage
         )
-    }
-
-    /// 直接创建 session 进行翻译
-    func translate(text: String, source: Locale.Language?, target: Locale.Language) async throws -> TranslationResult {
-        let sourceLanguage = source ?? detectLanguage(for: text)
-        let session = TranslationSession(installedSource: sourceLanguage, target: target)
-        return try await translate(text: text, using: session)
     }
 }

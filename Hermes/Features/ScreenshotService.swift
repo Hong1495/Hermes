@@ -27,8 +27,14 @@ class ScreenshotService {
 
     // MARK: - screencapture path (area / screen)
 
+    /// 每次调用生成唯一临时路径，避免并发截图时互相覆盖
+    private static func makeTempPath(suffix: String = "") -> String {
+        let unique = "\(ProcessInfo.processInfo.processIdentifier)_\(UUID().uuidString)\(suffix).png"
+        return NSTemporaryDirectory().appending(unique)
+    }
+
     private func captureViaScreencapture(mode: CaptureMode, completion: @escaping (NSImage?) -> Void) {
-        let tempPath = NSTemporaryDirectory().appending("hermes_capture.png")
+        let tempPath = Self.makeTempPath()
         let url = URL(fileURLWithPath: tempPath)
         try? FileManager.default.removeItem(at: url)
 
@@ -55,6 +61,7 @@ class ScreenshotService {
             let image: NSImage?
             if FileManager.default.fileExists(atPath: tempPath) {
                 image = NSImage(contentsOfFile: tempPath)
+                try? FileManager.default.removeItem(at: URL(fileURLWithPath: tempPath))
             } else {
                 image = nil
             }
@@ -66,7 +73,6 @@ class ScreenshotService {
         do {
             try task.run()
         } catch {
-            print("Failed to launch screencapture: \(error)")
             completion(nil)
         }
     }
@@ -74,7 +80,7 @@ class ScreenshotService {
     // MARK: - Window capture
 
     private func captureWindow(completion: @escaping (NSImage?) -> Void) {
-        let tempPath = NSTemporaryDirectory().appending("hermes_capture.png")
+        let tempPath = Self.makeTempPath(suffix: "_w")
         let url = URL(fileURLWithPath: tempPath)
         try? FileManager.default.removeItem(at: url)
 
@@ -88,6 +94,7 @@ class ScreenshotService {
             let image: NSImage?
             if FileManager.default.fileExists(atPath: tempPath) {
                 image = NSImage(contentsOfFile: tempPath)
+                try? FileManager.default.removeItem(at: URL(fileURLWithPath: tempPath))
             } else {
                 image = nil
             }
@@ -113,13 +120,12 @@ class ScreenshotService {
         do {
             try task.run()
         } catch {
-            print("Failed to launch screencapture: \(error)")
             completion(nil)
         }
     }
 
     private func captureRegion(rect: NSRect, completion: @escaping (NSImage?) -> Void) {
-        let tempPath = NSTemporaryDirectory().appending("hermes_capture_r.png")
+        let tempPath = Self.makeTempPath(suffix: "_r")
         let url = URL(fileURLWithPath: tempPath)
         try? FileManager.default.removeItem(at: url)
 
@@ -135,6 +141,7 @@ class ScreenshotService {
             let image: NSImage?
             if FileManager.default.fileExists(atPath: tempPath) {
                 image = NSImage(contentsOfFile: tempPath)
+                try? FileManager.default.removeItem(at: URL(fileURLWithPath: tempPath))
             } else {
                 image = nil
             }
@@ -146,7 +153,6 @@ class ScreenshotService {
         do {
             try task.run()
         } catch {
-            print("Failed to launch screencapture: \(error)")
             completion(nil)
         }
     }

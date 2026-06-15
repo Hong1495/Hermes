@@ -36,9 +36,8 @@ class HotKeyManager {
         if err == noErr, let ref = hotKeyRef {
             hotKeyRefs[key] = ref
             handlers[key] = handler
-        } else {
-            print("Failed to register hotkey: \(err)")
         }
+        // 注册失败（通常快捷键被其他应用占用）静默忽略
     }
     
     func unregister(key: String) {
