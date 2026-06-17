@@ -12,7 +12,7 @@ class OCRService {
         ("zh-Hant", "繁體中文"),
         ("en-US", "英语"),
         ("ja-JP", "日语"),
-        ("ko-KO", "韩语"),
+        ("ko-KR", "韩语"),
         ("fr-FR", "法语"),
         ("es-ES", "西班牙语"),
         ("de-DE", "德语")
@@ -26,6 +26,23 @@ class OCRService {
             .map { String($0).trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         return codes.isEmpty ? ["zh-Hans", "en-US"] : codes
+    }
+
+    private func effectiveLanguages() -> [String] {
+        let configured = configuredLanguages
+
+        let supported: Set<String>
+        do {
+            supported = Set(try VNRecognizeTextRequest.supportedRecognitionLanguages(
+                for: .accurate,
+                revision: VNRecognizeTextRequestRevision3
+            ))
+        } catch {
+            return configured
+        }
+
+        let filtered = configured.filter { supported.contains($0) }
+        return filtered.isEmpty ? ["zh-Hans", "en-US"] : filtered
     }
 
     private func completeOnMain(_ completion: @escaping (OCRResult?) -> Void, with result: OCRResult?) {
@@ -57,7 +74,7 @@ class OCRService {
 
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
-        request.recognitionLanguages = configuredLanguages
+        request.recognitionLanguages = effectiveLanguages()
 
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
 
