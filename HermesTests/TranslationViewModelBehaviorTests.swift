@@ -8,11 +8,15 @@ import Testing
 @Suite struct TranslationViewModelBehaviorTests {
 
     private func makeVM() -> (TranslationViewModel, AppState) {
+        UserDefaults.standard.removeObject(forKey: AppSettings.Key.lastSourceLang)
+        UserDefaults.standard.removeObject(forKey: AppSettings.Key.lastTargetLang)
         let appState = AppState()
         return (TranslationViewModel(appState: appState), appState)
     }
 
     private func makeVMWithContent() -> (TranslationViewModel, AppState) {
+        UserDefaults.standard.removeObject(forKey: AppSettings.Key.lastSourceLang)
+        UserDefaults.standard.removeObject(forKey: AppSettings.Key.lastTargetLang)
         let appState = AppState()
         appState.translationInput = "hello"
         return (TranslationViewModel(appState: appState), appState)

@@ -7,12 +7,17 @@ import Testing
 @Suite struct TranslationViewModelTests {
 
     private func makeViewModel() -> TranslationViewModel {
-        TranslationViewModel(appState: AppState())
+        // 清除 UserDefaults，避免语言记忆泄漏影响测试
+        UserDefaults.standard.removeObject(forKey: AppSettings.Key.lastSourceLang)
+        UserDefaults.standard.removeObject(forKey: AppSettings.Key.lastTargetLang)
+        return TranslationViewModel(appState: AppState())
     }
 
     private func makeViewModelWithContent() -> (TranslationViewModel, AppState) {
         let appState = AppState()
         appState.translationInput = "hello"
+        UserDefaults.standard.removeObject(forKey: AppSettings.Key.lastSourceLang)
+        UserDefaults.standard.removeObject(forKey: AppSettings.Key.lastTargetLang)
         return (TranslationViewModel(appState: appState), appState)
     }
 
