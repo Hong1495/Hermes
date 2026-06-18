@@ -1,11 +1,14 @@
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
+import OSLog
 
 /// 截图导出服务：图片合成、PNG 编码、文件保存、剪贴板复制。
 final class ScreenshotExportService {
 
     static let shared = ScreenshotExportService()
+
+    private let logger = Logger(subsystem: "hera.Hermes", category: "Export")
 
     private init() {}
 
@@ -218,6 +221,7 @@ final class ScreenshotExportService {
 
     func saveImage(_ image: NSImage, fileName: String, completion: @escaping (Bool) -> Void) {
         guard let data = pngData(for: image) else {
+            logger.error("保存失败: PNG编码失败")
             completion(false)
             return
         }
@@ -236,9 +240,11 @@ final class ScreenshotExportService {
 
                 let fileURL = uniqueDestinationURL(for: url.appendingPathComponent(fileName))
                 if (try? data.write(to: fileURL, options: .atomic)) != nil {
+                    logger.notice("保存成功: \(fileURL.lastPathComponent, privacy: .public)")
                     completion(true)
                     return
                 }
+                logger.warning("写入 bookmark 目录失败, 尝试 fallback")
             }
         }
 
@@ -248,23 +254,33 @@ final class ScreenshotExportService {
             let baseURL = URL(fileURLWithPath: defaultSavePath, isDirectory: true)
             let fileURL = uniqueDestinationURL(for: baseURL.appendingPathComponent(fileName))
             if (try? data.write(to: fileURL, options: .atomic)) != nil {
+                logger.notice("保存成功: \(fileURL.lastPathComponent, privacy: .public)")
                 completion(true)
                 return
             }
+            logger.warning("写入 defaultSavePath 失败: \(defaultSavePath, privacy: .public)")
         }
 
         // 3. NSSavePanel fallback
+        logger.notice("弹出 NSSavePanel 用户选择保存路径")
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.png]
         savePanel.canCreateDirectories = true
         savePanel.nameFieldStringValue = fileName
         savePanel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
 
-        savePanel.begin { response in
+        savePanel.begin { [weak self] response in
             if response == .OK, let url = savePanel.url {
-                try? data.write(to: url, options: .atomic)
-                completion(true)
+                do {
+                    try data.write(to: url, options: .atomic)
+                    self?.logger.notice("用户选择保存: \(url.lastPathComponent, privacy: .public)")
+                    completion(true)
+                } catch {
+                    self?.logger.error("NSSavePanel 写入失败: \(error.localizedDescription, privacy: .public)")
+                    completion(false)
+                }
             } else {
+                self?.logger.notice("用户取消保存")
                 completion(false)
             }
         }

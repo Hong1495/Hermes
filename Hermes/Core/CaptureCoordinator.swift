@@ -1,9 +1,11 @@
 import Cocoa
+import OSLog
 
 /// 协调截图 / OCR / 翻译工作区的完整流程，将时序逻辑从 AppDelegate 抽出。
 final class CaptureCoordinator {
     weak var windowController: FloatingWindowController?
     private let appState: AppState
+    private let logger = Logger(subsystem: "hera.Hermes", category: "Capture")
 
     init(appState: AppState) {
         self.appState = appState
@@ -16,7 +18,10 @@ final class CaptureCoordinator {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             ScreenshotService.shared.capture(mode: mode) { image in
-                guard let image = image else { return }
+                guard let image = image else {
+                    self?.logger.error("截图失败: capture returned nil")
+                    return
+                }
 
                 DispatchQueue.main.async {
                     self?.appState.setScreenshot(image, mode: mode)
@@ -33,11 +38,15 @@ final class CaptureCoordinator {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             ScreenshotService.shared.capture(mode: .area) { image in
-                guard let image = image else { return }
+                guard let image = image else {
+                    self.logger.error("OCR截图失败: capture returned nil")
+                    NSSound(named: "Basso")?.play()
+                    return
+                }
                 DispatchQueue.main.async {
                     OCRService.shared.recognizeText(from: image) { result in
-                        let text = result?.text
-                        guard let text = text, !text.isEmpty else {
+                        guard let text = result?.text, !text.isEmpty else {
+                            self.logger.warning("OCR未识别到文字")
                             NSSound(named: "Basso")?.play()
                             return
                         }
@@ -45,6 +54,7 @@ final class CaptureCoordinator {
                         pb.clearContents()
                         pb.setString(text, forType: .string)
                         NSSound(named: "Glass")?.play()
+                        self.logger.notice("OCR完成: 已复制 \(text.count) 字符")
                     }
                 }
             }

@@ -1,43 +1,46 @@
 import Carbon
 import Cocoa
+import OSLog
 
 class HotKeyManager {
     static let shared = HotKeyManager()
-    
+
     private var hotKeyRefs: [String: EventHotKeyRef] = [:]
     private var handlers: [String: () -> Void] = [:]
     private var ids: [String: UInt32] = [:]
     private var currentId: UInt32 = 1
-    
+    private let logger = Logger(subsystem: "hera.Hermes", category: "HotKey")
+
     // Make init public if needed, or keep private for singleton
     private init() {
         installEventHandler()
     }
-    
+
     func register(key: String, shortcut: Shortcut, handler: @escaping () -> Void) {
         // Unregister existing if any
         unregister(key: key)
-        
+
         let id = currentId
         currentId += 1
         ids[key] = id
-        
+
         var hotKeyRef: EventHotKeyRef?
         let modifierFlags = carbonFlags(from: shortcut.nsModifiers)
         let keyID = EventHotKeyID(signature: OSType(0x484B5953), id: id) // HKYS
-        
+
         let err = RegisterEventHotKey(UInt32(shortcut.key.rawValue),
                                       modifierFlags,
                                       keyID,
                                       GetApplicationEventTarget(),
                                       0,
                                       &hotKeyRef)
-        
+
         if err == noErr, let ref = hotKeyRef {
             hotKeyRefs[key] = ref
             handlers[key] = handler
+        } else {
+            logger.warning("快捷键注册失败 [\(key, privacy: .public)]: OSStatus=\(err)")
         }
-        // 注册失败（通常快捷键被其他应用占用）静默忽略
     }
     
     func unregister(key: String) {
