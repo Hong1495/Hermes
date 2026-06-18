@@ -8,6 +8,7 @@ struct ScreenshotResultView: View {
     @State private var showBorder = false
     @State private var showCornerRadius = false
     @State private var showShadow = true
+    @State private var toastMessage: String?
 
     private let exportService = ScreenshotExportService.shared
 
@@ -28,6 +29,7 @@ struct ScreenshotResultView: View {
             stage
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .toast(message: $toastMessage)
     }
 
     // MARK: - Toolbar
@@ -237,38 +239,63 @@ struct ScreenshotResultView: View {
     // MARK: - Export Actions
 
     private func copyImage() {
-        guard let original = appState.capturedImage,
-              let image = exportService.generateFinalImage(
-                from: original,
-                annotations: annotationState.annotations,
-                showBorder: showBorder,
-                showCornerRadius: showCornerRadius,
-                showShadow: showShadow,
-                captureMode: appState.lastCaptureMode
-              ) else { return }
+        guard let original = appState.capturedImage else {
+            toastMessage = "没有可导出的图片"
+            return
+        }
+        guard let image = exportService.generateFinalImage(
+            from: original,
+            annotations: annotationState.annotations,
+            showBorder: showBorder,
+            showCornerRadius: showCornerRadius,
+            showShadow: showShadow,
+            captureMode: appState.lastCaptureMode
+        ) else {
+            toastMessage = "导出图片生成失败"
+            return
+        }
 
         exportService.copyToClipboard(image)
-        closeWindow()
+        toastMessage = "已复制到剪贴板"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.closeWindow()
+        }
     }
 
     private func saveImage() {
-        guard let original = appState.capturedImage,
-              let image = exportService.generateFinalImage(
-                from: original,
-                annotations: annotationState.annotations,
-                showBorder: showBorder,
-                showCornerRadius: showCornerRadius,
-                showShadow: showShadow,
-                captureMode: appState.lastCaptureMode
-              ) else { return }
+        guard let original = appState.capturedImage else {
+            toastMessage = "没有可保存的图片"
+            return
+        }
+        guard let image = exportService.generateFinalImage(
+            from: original,
+            annotations: annotationState.annotations,
+            showBorder: showBorder,
+            showCornerRadius: showCornerRadius,
+            showShadow: showShadow,
+            captureMode: appState.lastCaptureMode
+        ) else {
+            toastMessage = "导出图片生成失败"
+            return
+        }
 
         let fileName = "Screenshot \(Date().formatted(date: .numeric, time: .shortened)).png"
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: ".")
 
-        exportService.saveImage(image, fileName: fileName) { result in
-            if result == .success {
-                closeWindow()
+        exportService.saveImage(image, fileName: fileName) { [self] result in
+            switch result {
+            case .success:
+                self.toastMessage = "保存成功"
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.closeWindow()
+                }
+            case .encodeFailed:
+                self.toastMessage = "图片编码失败"
+            case .writeFailed:
+                self.toastMessage = "文件写入失败，请检查权限或磁盘空间"
+            case .userCancelled:
+                break
             }
         }
     }
