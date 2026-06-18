@@ -7,6 +7,7 @@ struct GeneralSettingsView: View {
     @AppStorage(AppSettings.Key.appTheme) var appTheme: String = AppSettings.Default.appTheme // System, Light, Dark
     @AppStorage(AppSettings.Key.defaultSavePath) var defaultSavePath: String = ""
     @AppStorage(AppSettings.Key.ocrLanguages) var ocrLanguages: String = AppSettings.Default.ocrLanguages
+    @AppStorage(AppSettings.Key.showOCRPreview) var showOCRPreview: Bool = AppSettings.Default.showOCRPreview
 
     /// OCR 语言选择的镜像数组（从 ocrLanguages 字符串解析）
     @State private var selectedOCRLanguages: Set<String> = []
@@ -45,6 +46,8 @@ struct GeneralSettingsView: View {
             }
 
             Section("OCR 取词") {
+                Toggle("取词后显示预览窗口", isOn: $showOCRPreview)
+
                 Text("选择静默 OCR（⌘⇧O）支持识别的语言，建议按常用程度勾选以提升准确率。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)

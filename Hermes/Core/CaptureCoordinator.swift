@@ -55,8 +55,11 @@ final class CaptureCoordinator {
                         pb.setString(text, forType: .string)
                         NSSound(named: "Glass")?.play()
                         self.logger.notice("OCR完成: 已复制 \(text.count) 字符")
-                        self.appState.ocrResultText = text
-                        self.windowController?.showWindow()
+                        let showPreview = UserDefaults.standard.bool(forKey: AppSettings.Key.showOCRPreview)
+                        if showPreview {
+                            self.appState.ocrResultText = text
+                            self.windowController?.showWindow()
+                        }
                     }
                 }
             }

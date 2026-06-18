@@ -22,6 +22,7 @@ enum AppSettings {
         static let lastSourceLang = "lastSourceLang"
         static let lastTargetLang = "lastTargetLang"
         static let autoTranslateOnPaste = "autoTranslateOnPaste"
+        static let showOCRPreview = "showOCRPreview"
     }
 
     // MARK: - Default Values
@@ -31,6 +32,7 @@ enum AppSettings {
         static let ocrLanguages = "zh-Hans,en-US"
         static let ocrFallbackLanguages = ["zh-Hans", "en-US"]
         static let autoTranslateOnPaste = true
+        static let showOCRPreview = true
     }
 
     // MARK: - Appearance
