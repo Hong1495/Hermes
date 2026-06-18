@@ -11,7 +11,13 @@ class ScreenshotService {
         case screen
     }
 
-    func capture(mode: CaptureMode, completion: @escaping (NSImage?) -> Void) {
+    enum CaptureResult {
+        case success(NSImage)
+        case cancelled
+        case failed(String)
+    }
+
+    func capture(mode: CaptureMode, completion: @escaping (CaptureResult) -> Void) {
         switch mode {
         case .window:
             captureWindow(completion: completion)
@@ -21,7 +27,7 @@ class ScreenshotService {
     }
 
     // Legacy alias
-    func captureInteractive(completion: @escaping (NSImage?) -> Void) {
+    func captureInteractive(completion: @escaping (CaptureResult) -> Void) {
         capture(mode: .area, completion: completion)
     }
 
@@ -33,7 +39,7 @@ class ScreenshotService {
         return NSTemporaryDirectory().appending(unique)
     }
 
-    private func captureViaScreencapture(mode: CaptureMode, completion: @escaping (NSImage?) -> Void) {
+    private func captureViaScreencapture(mode: CaptureMode, completion: @escaping (CaptureResult) -> Void) {
         let tempPath = Self.makeTempPath()
         let url = URL(fileURLWithPath: tempPath)
         try? FileManager.default.removeItem(at: url)
@@ -58,28 +64,32 @@ class ScreenshotService {
         task.arguments = arguments
 
         task.terminationHandler = { _ in
-            let image: NSImage?
+            let result: CaptureResult
             if FileManager.default.fileExists(atPath: tempPath) {
-                image = NSImage(contentsOfFile: tempPath)
+                if let image = NSImage(contentsOfFile: tempPath) {
+                    result = .success(image)
+                } else {
+                    result = .failed("截图文件读取失败")
+                }
                 try? FileManager.default.removeItem(at: URL(fileURLWithPath: tempPath))
             } else {
-                image = nil
+                result = .cancelled
             }
             DispatchQueue.main.async {
-                completion(image)
+                completion(result)
             }
         }
 
         do {
             try task.run()
         } catch {
-            completion(nil)
+            completion(.failed("screencapture 启动失败: \(error.localizedDescription)"))
         }
     }
 
     // MARK: - Window capture
 
-    private func captureWindow(completion: @escaping (NSImage?) -> Void) {
+    private func captureWindow(completion: @escaping (CaptureResult) -> Void) {
         let tempPath = Self.makeTempPath(suffix: "_w")
         let url = URL(fileURLWithPath: tempPath)
         try? FileManager.default.removeItem(at: url)
@@ -102,7 +112,7 @@ class ScreenshotService {
             // If image exists, check whether a sharingState=0 window (WeChat)
             // was on top at mouse click position — screencapture -i -W would have
             // skipped it and captured the window behind instead.
-            if image != nil, let self = self {
+            if let image, image.isValid, let self = self {
                 let clickPoint = NSEvent.mouseLocation
                 if Self.hasBlockedWindowAt(cocoaPoint: clickPoint),
                    let rect = Self.findWindowRectViaRegion(cocoaPoint: clickPoint) {
@@ -110,21 +120,28 @@ class ScreenshotService {
                     self.captureRegion(rect: rect, completion: completion)
                     return
                 }
-            }
-
-            DispatchQueue.main.async {
-                completion(image)
+                DispatchQueue.main.async {
+                    completion(.success(image))
+                }
+            } else if image != nil {
+                DispatchQueue.main.async {
+                    completion(.failed("窗口截图文件读取失败"))
+                }
+            } else {
+                DispatchQueue.main.async {
+                    completion(.cancelled)
+                }
             }
         }
 
         do {
             try task.run()
         } catch {
-            completion(nil)
+            completion(.failed("screencapture 启动失败: \(error.localizedDescription)"))
         }
     }
 
-    private func captureRegion(rect: NSRect, completion: @escaping (NSImage?) -> Void) {
+    private func captureRegion(rect: NSRect, completion: @escaping (CaptureResult) -> Void) {
         let tempPath = Self.makeTempPath(suffix: "_r")
         let url = URL(fileURLWithPath: tempPath)
         try? FileManager.default.removeItem(at: url)
@@ -138,22 +155,26 @@ class ScreenshotService {
         task.arguments = ["-R", rectStr, "-x", tempPath]
 
         task.terminationHandler = { _ in
-            let image: NSImage?
+            let result: CaptureResult
             if FileManager.default.fileExists(atPath: tempPath) {
-                image = NSImage(contentsOfFile: tempPath)
+                if let image = NSImage(contentsOfFile: tempPath) {
+                    result = .success(image)
+                } else {
+                    result = .failed("区域截图文件读取失败")
+                }
                 try? FileManager.default.removeItem(at: URL(fileURLWithPath: tempPath))
             } else {
-                image = nil
+                result = .failed("区域截图未生成文件")
             }
             DispatchQueue.main.async {
-                completion(image)
+                completion(result)
             }
         }
 
         do {
             try task.run()
         } catch {
-            completion(nil)
+            completion(.failed("screencapture 启动失败: \(error.localizedDescription)"))
         }
     }
 

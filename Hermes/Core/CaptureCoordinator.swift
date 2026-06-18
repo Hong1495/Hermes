@@ -17,16 +17,17 @@ final class CaptureCoordinator {
         windowController?.closeWindow()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            ScreenshotService.shared.capture(mode: mode) { image in
-                guard let image = image else {
-                    // nil = 用户按 Esc 取消截图，非错误
-                    self?.logger.debug("截图取消（用户按 Esc）")
-                    return
-                }
-
+            ScreenshotService.shared.capture(mode: mode) { result in
                 DispatchQueue.main.async {
-                    self?.appState.setScreenshot(image, mode: mode)
-                    self?.windowController?.showWindow()
+                    switch result {
+                    case .success(let image):
+                        self?.appState.setScreenshot(image, mode: mode)
+                        self?.windowController?.showWindow()
+                    case .cancelled:
+                        self?.logger.debug("截图取消（用户按 Esc）")
+                    case .failed(let reason):
+                        self?.logger.error("截图失败: \(reason, privacy: .public)")
+                    }
                 }
             }
         }
@@ -38,9 +39,9 @@ final class CaptureCoordinator {
         windowController?.closeWindow()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            ScreenshotService.shared.capture(mode: .area) { image in
-                guard let image = image else {
-                    // nil = 用户按 Esc 取消，静默返回
+            ScreenshotService.shared.capture(mode: .area) { result in
+                guard case .success(let image) = result else {
+                    // cancelled 或 failed 静默返回
                     return
                 }
                 DispatchQueue.main.async {
