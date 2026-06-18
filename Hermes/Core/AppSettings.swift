@@ -35,6 +35,13 @@ enum AppSettings {
         static let showOCRPreview = true
     }
 
+    static func showOCRPreview(in defaults: UserDefaults = .standard) -> Bool {
+        if let storedValue = defaults.object(forKey: Key.showOCRPreview) as? Bool {
+            return storedValue
+        }
+        return Default.showOCRPreview
+    }
+
     // MARK: - Appearance
 
     static func updateAppearance(_ theme: String) {

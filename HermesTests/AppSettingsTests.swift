@@ -30,8 +30,30 @@ import Testing
             AppSettings.Key.shortcutTranslate,
             AppSettings.Key.windowSizeScreenshot,
             AppSettings.Key.selectedJapaneseColor,
+            AppSettings.Key.lastSourceLang,
+            AppSettings.Key.lastTargetLang,
+            AppSettings.Key.autoTranslateOnPaste,
+            AppSettings.Key.showOCRPreview,
         ]
         let uniqueKeys = Set(keys)
         #expect(keys.count == uniqueKeys.count, "All UserDefaults keys must be unique")
+    }
+
+    @Test func showOCRPreviewDefaultsToTrueWhenUnset() {
+        let suiteName = "hera.Hermes.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        #expect(AppSettings.showOCRPreview(in: defaults))
+    }
+
+    @Test func showOCRPreviewReadsStoredFalse() {
+        let suiteName = "hera.Hermes.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        defaults.set(false, forKey: AppSettings.Key.showOCRPreview)
+
+        #expect(AppSettings.showOCRPreview(in: defaults) == false)
     }
 }

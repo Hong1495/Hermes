@@ -14,6 +14,7 @@ final class CaptureCoordinator {
     // MARK: - Screenshot Capture
 
     func capture(mode: ScreenshotService.CaptureMode) {
+        appState.ocrResultText = nil
         windowController?.closeWindow()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -36,6 +37,7 @@ final class CaptureCoordinator {
     // MARK: - Silent OCR
 
     func ocrCaptureSilent() {
+        appState.ocrResultText = nil
         windowController?.closeWindow()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -55,8 +57,7 @@ final class CaptureCoordinator {
                         pb.setString(text, forType: .string)
                         NSSound(named: "Glass")?.play()
                         self.logger.notice("OCR完成: 已复制 \(text.count) 字符")
-                        let showPreview = UserDefaults.standard.bool(forKey: AppSettings.Key.showOCRPreview)
-                        if showPreview {
+                        if AppSettings.showOCRPreview() {
                             self.appState.ocrResultText = text
                             self.windowController?.showWindow()
                         }

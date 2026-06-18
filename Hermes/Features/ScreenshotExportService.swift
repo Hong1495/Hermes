@@ -146,10 +146,10 @@ final class ScreenshotExportService {
         // Pass 1: dim overlay with highlighter holes
         let highlighters = annotations.filter { $0.type == .highlighter }
         if !highlighters.isEmpty {
+            let overlayPath = CGMutablePath()
+            overlayPath.addRect(CGRect(origin: imageOrigin, size: originalSize))
+
             context.setFillColor(NSColor.black.withAlphaComponent(0.35).cgColor)
-            context.fill(CGRect(origin: .zero, size: originalSize))
-            context.saveGState()
-            context.setBlendMode(.clear)
             for ann in highlighters {
                 let hStart = exportPoint(
                     for: ann.absoluteStart(canvasSize: originalSize),
@@ -168,10 +168,10 @@ final class ScreenshotExportService {
                     height: abs(hEnd.y - hStart.y)
                 )
                 let path = NSBezierPath(roundedRect: rect, xRadius: Annotation.RenderStyle.cornerRadius, yRadius: Annotation.RenderStyle.cornerRadius)
-                context.addPath(path.cgPath)
-                context.fillPath()
+                overlayPath.addPath(path.cgPath)
             }
-            context.restoreGState()
+            context.addPath(overlayPath)
+            context.drawPath(using: .eoFill)
         }
 
         // Pass 2: render non-highlighter annotations

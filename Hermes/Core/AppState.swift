@@ -23,6 +23,7 @@ final class AppState: ObservableObject {
         capturedImage = image
         lastCaptureMode = mode
         self.mode = .actions
+        ocrResultText = nil
         translationInput = ""
         translatedText = ""
         translationError = nil
@@ -31,6 +32,7 @@ final class AppState: ObservableObject {
 
     func prepareForTranslationWorkspace() {
         mode = .translation
+        ocrResultText = nil
         translationInput = ""
         translatedText = ""
         translationError = nil
@@ -52,6 +54,7 @@ final class AppState: ObservableObject {
         translationInput = ""
         translationError = nil
         isTranslating = false
+        ocrResultText = nil
     }
 
     func clear() {
