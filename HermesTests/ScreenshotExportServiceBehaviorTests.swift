@@ -27,6 +27,7 @@ import Testing
             annotations: [],
             showBorder: false,
             showCornerRadius: false,
+            showShadow: false,
             captureMode: .area
         )
         #expect(result != nil)
@@ -39,6 +40,7 @@ import Testing
             annotations: [],
             showBorder: false,
             showCornerRadius: false,
+            showShadow: false,
             captureMode: .area
         )
         #expect(result == nil)
@@ -51,6 +53,7 @@ import Testing
             annotations: [],
             showBorder: true,
             showCornerRadius: false,
+            showShadow: false,
             captureMode: .area
         ) else {
             #expect(Bool(false), "Expected image")
@@ -68,6 +71,7 @@ import Testing
             annotations: [],
             showBorder: false,
             showCornerRadius: false,
+            showShadow: false,
             captureMode: .area
         ) else {
             #expect(Bool(false), "Expected image")
@@ -92,6 +96,7 @@ import Testing
             annotations: annotations,
             showBorder: false,
             showCornerRadius: false,
+            showShadow: false,
             captureMode: .area
         )
         #expect(result != nil)
@@ -109,6 +114,7 @@ import Testing
             annotations: [],
             showBorder: false,
             showCornerRadius: false,
+            showShadow: false,
             captureMode: .area
         ) else {
             #expect(Bool(false), "Expected image")
@@ -129,6 +135,7 @@ import Testing
             annotations: [],
             showBorder: false,
             showCornerRadius: false,
+            showShadow: false,
             captureMode: .area
         ) else {
             #expect(Bool(false), "Expected image")
@@ -148,11 +155,109 @@ import Testing
             annotations: [],
             showBorder: true,
             showCornerRadius: true,
+            showShadow: false,
             captureMode: .window
         )
         #expect(result != nil)
         // 边框 padding + 圆角裁剪不应崩溃
         #expect(result!.size.width == 116)
         #expect(result!.size.height == 96)
+    }
+
+    // MARK: - New Annotation Types
+
+    @Test func exportWithHighlighterDoesNotCrash() {
+        let image = makeTestImage()
+        let annotations = [
+            Annotation(
+                type: .highlighter,
+                normalizedStart: CGPoint(x: 0.1, y: 0.1),
+                normalizedEnd: CGPoint(x: 0.8, y: 0.3),
+                color: .yellow
+            )
+        ]
+        let result = service.generateFinalImage(
+            from: image,
+            annotations: annotations,
+            showBorder: false,
+            showCornerRadius: false,
+            showShadow: false,
+            captureMode: .area
+        )
+        #expect(result != nil)
+    }
+
+    @Test func exportWithFreehandDoesNotCrash() {
+        let image = makeTestImage()
+        let annotations = [
+            Annotation(
+                type: .freehand,
+                normalizedStart: CGPoint(x: 0.1, y: 0.1),
+                normalizedEnd: CGPoint(x: 0.9, y: 0.9),
+                color: .red,
+                pathPoints: [
+                    CGPoint(x: 0.1, y: 0.1),
+                    CGPoint(x: 0.3, y: 0.4),
+                    CGPoint(x: 0.5, y: 0.2),
+                    CGPoint(x: 0.9, y: 0.9)
+                ]
+            )
+        ]
+        let result = service.generateFinalImage(
+            from: image,
+            annotations: annotations,
+            showBorder: false,
+            showCornerRadius: false,
+            showShadow: false,
+            captureMode: .area
+        )
+        #expect(result != nil)
+    }
+
+    @Test func exportWithNumberedMarkerDoesNotCrash() {
+        let image = makeTestImage()
+        let annotations = [
+            Annotation(
+                type: .numberedMarker,
+                normalizedStart: CGPoint(x: 0.3, y: 0.4),
+                normalizedEnd: CGPoint(x: 0.3, y: 0.4),
+                color: .blue,
+                text: "1"
+            ),
+            Annotation(
+                type: .numberedMarker,
+                normalizedStart: CGPoint(x: 0.6, y: 0.2),
+                normalizedEnd: CGPoint(x: 0.6, y: 0.2),
+                color: .red,
+                text: "2"
+            )
+        ]
+        let result = service.generateFinalImage(
+            from: image,
+            annotations: annotations,
+            showBorder: false,
+            showCornerRadius: false,
+            showShadow: false,
+            captureMode: .area
+        )
+        #expect(result != nil)
+    }
+
+    @Test func exportAllNewAnnotationTypesTogether() {
+        let image = makeTestImage(size: CGSize(width: 200, height: 200))
+        let annotations: [Annotation] = [
+            .init(type: .highlighter, normalizedStart: .init(x: 0.1, y: 0.1), normalizedEnd: .init(x: 0.5, y: 0.3), color: .yellow),
+            .init(type: .freehand, normalizedStart: .init(x: 0.2, y: 0.2), normalizedEnd: .init(x: 0.8, y: 0.8), color: .red, pathPoints: [.init(x: 0.2, y: 0.2), .init(x: 0.5, y: 0.5), .init(x: 0.8, y: 0.8)]),
+            .init(type: .numberedMarker, normalizedStart: .init(x: 0.7, y: 0.3), normalizedEnd: .init(x: 0.7, y: 0.3), color: .blue, text: "1")
+        ]
+        let result = service.generateFinalImage(
+            from: image,
+            annotations: annotations,
+            showBorder: true,
+            showCornerRadius: true,
+            showShadow: false,
+            captureMode: .window
+        )
+        #expect(result != nil)
     }
 }

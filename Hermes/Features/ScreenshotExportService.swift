@@ -29,6 +29,7 @@ final class ScreenshotExportService {
         annotations: [Annotation],
         showBorder: Bool,
         showCornerRadius: Bool,
+        showShadow: Bool,
         captureMode: ScreenshotService.CaptureMode
     ) -> NSImage? {
         guard let cgOriginal = original.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
@@ -79,6 +80,14 @@ final class ScreenshotExportService {
         if showBorder {
             context.setFillColor(NSColor(Theme.Colors.panelElevated).cgColor)
             context.fill(CGRect(origin: .zero, size: finalSizePoints))
+        }
+
+        if showShadow {
+            context.setShadow(
+                offset: CGSize(width: 0, height: -2),
+                blur: 8,
+                color: NSColor.black.withAlphaComponent(0.15).cgColor
+            )
         }
 
         if showCornerRadius {
@@ -137,7 +146,7 @@ final class ScreenshotExportService {
             let color = NSColor(annotation.color)
 
             switch annotation.type {
-            case .rectangle:
+            case .rectangle, .highlighter:
                 let rect = CGRect(
                     x: min(start.x, end.x),
                     y: min(start.y, end.y),
@@ -145,9 +154,14 @@ final class ScreenshotExportService {
                     height: abs(end.y - start.y)
                 )
                 let path = NSBezierPath(roundedRect: rect, xRadius: Annotation.RenderStyle.cornerRadius, yRadius: Annotation.RenderStyle.cornerRadius)
-                color.setStroke()
-                path.lineWidth = Annotation.RenderStyle.lineWidth
-                path.stroke()
+                if annotation.type == .highlighter {
+                    color.withAlphaComponent(0.35).setFill()
+                    path.fill()
+                } else {
+                    color.setStroke()
+                    path.lineWidth = Annotation.RenderStyle.lineWidth
+                    path.stroke()
+                }
             case .arrow:
                 let path = NSBezierPath()
                 path.move(to: start)
@@ -174,6 +188,39 @@ final class ScreenshotExportService {
                 path.lineCapStyle = .round
                 path.lineJoinStyle = .round
                 path.stroke()
+            case .freehand:
+                guard annotation.pathPoints.count >= 2 else { break }
+                let freePath = NSBezierPath()
+                let absPoints = annotation.pathPoints.map { pt in
+                    exportPoint(for: CGPoint(x: pt.x * originalSize.width, y: pt.y * originalSize.height), originalHeight: originalSize.height, imageOrigin: imageOrigin)
+                }
+                freePath.move(to: absPoints[0])
+                for pt in absPoints.dropFirst() {
+                    freePath.line(to: pt)
+                }
+                color.setStroke()
+                freePath.lineWidth = Annotation.RenderStyle.lineWidth
+                freePath.lineCapStyle = .round
+                freePath.lineJoinStyle = .round
+                freePath.stroke()
+            case .numberedMarker:
+                let radius = Annotation.RenderStyle.markerRadius
+                let circleRect = CGRect(x: start.x - radius, y: start.y - radius, width: radius * 2, height: radius * 2)
+                color.setFill()
+                NSBezierPath(ovalIn: circleRect).fill()
+                let numberAttributes: [NSAttributedString.Key: Any] = [
+                    .foregroundColor: NSColor.white,
+                    .font: NSFont.systemFont(ofSize: 14, weight: .bold)
+                ]
+                let number = NSString(string: annotation.text)
+                let numSize = number.size(withAttributes: numberAttributes)
+                let numRect = CGRect(
+                    x: start.x - numSize.width / 2,
+                    y: start.y - numSize.height / 2,
+                    width: numSize.width,
+                    height: numSize.height
+                )
+                number.draw(in: numRect, withAttributes: numberAttributes)
             case .text:
                 let attributes: [NSAttributedString.Key: Any] = [
                     .foregroundColor: color,

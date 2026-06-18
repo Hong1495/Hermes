@@ -7,6 +7,7 @@ struct ScreenshotResultView: View {
 
     @State private var showBorder = false
     @State private var showCornerRadius = false
+    @State private var showShadow = true
 
     private let exportService = ScreenshotExportService.shared
 
@@ -53,6 +54,11 @@ struct ScreenshotResultView: View {
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .disabled(!hasImage)
+
+            Toggle("阴影", isOn: $showShadow)
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .disabled(!hasImage)
         }
     }
 
@@ -70,6 +76,15 @@ struct ScreenshotResultView: View {
             iconToolButton("textformat", isActive: annotationState.currentTool == .text, disabled: !hasImage) {
                 annotationState.currentTool = .text
             }
+            iconToolButton("highlighter", isActive: annotationState.currentTool == .highlighter, disabled: !hasImage) {
+                annotationState.currentTool = .highlighter
+            }
+            iconToolButton("pencil.tip", isActive: annotationState.currentTool == .freehand, disabled: !hasImage) {
+                annotationState.currentTool = .freehand
+            }
+            iconToolButton("1.circle", isActive: annotationState.currentTool == .numberedMarker, disabled: !hasImage) {
+                annotationState.currentTool = .numberedMarker
+            }
 
             Button(action: {
                 annotationState.undo()
@@ -78,7 +93,16 @@ struct ScreenshotResultView: View {
                     .frame(width: 26, height: 26)
             }
             .modernStyle(.icon)
-            .disabled(annotationState.annotations.isEmpty)
+            .disabled(!annotationState.canUndo)
+
+            Button(action: {
+                annotationState.redo()
+            }) {
+                Image(systemName: "arrow.uturn.forward")
+                    .frame(width: 26, height: 26)
+            }
+            .modernStyle(.icon)
+            .disabled(!annotationState.canRedo)
 
             JapaneseColorPicker(selectedColor: $annotationState.selectedJapaneseColor)
                 .disabled(!hasImage)
@@ -118,13 +142,23 @@ struct ScreenshotResultView: View {
                         Image(nsImage: image)
                             .resizable()
                             .interpolation(.high)
-                            .frame(width: fittedRect.width, height: fittedRect.height)
 
                         AnnotationCanvas(state: annotationState)
-                            .frame(width: fittedRect.width, height: fittedRect.height)
                     }
                     .frame(width: fittedRect.width, height: fittedRect.height)
-                    .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+                    .padding(showBorder ? 8 : 0)
+                    .background(showBorder ? Theme.Colors.panelElevated : Color.clear)
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: showCornerRadius ? Theme.CornerRadius.small : 0,
+                            style: .continuous
+                        )
+                    )
+                    .shadow(
+                        color: showShadow ? .black.opacity(0.15) : .clear,
+                        radius: showShadow ? 8 : 0,
+                        y: showShadow ? 2 : 0
+                    )
                     .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
                 }
                 .padding(12)
@@ -209,6 +243,7 @@ struct ScreenshotResultView: View {
                 annotations: annotationState.annotations,
                 showBorder: showBorder,
                 showCornerRadius: showCornerRadius,
+                showShadow: showShadow,
                 captureMode: appState.lastCaptureMode
               ) else { return }
 
@@ -223,6 +258,7 @@ struct ScreenshotResultView: View {
                 annotations: annotationState.annotations,
                 showBorder: showBorder,
                 showCornerRadius: showCornerRadius,
+                showShadow: showShadow,
                 captureMode: appState.lastCaptureMode
               ) else { return }
 
