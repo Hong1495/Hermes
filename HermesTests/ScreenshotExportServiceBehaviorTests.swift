@@ -159,9 +159,41 @@ import Testing
             captureMode: .window
         )
         #expect(result != nil)
-        // 边框 padding + 圆角裁剪不应崩溃
+        // 边框 padding + 圆角裁剪不应崩溃；无阴影时 borderPad 8，totalPad=8 → 116×96
         #expect(result!.size.width == 116)
         #expect(result!.size.height == 96)
+    }
+
+    @Test func shadowAddsMargin() {
+        let image = makeTestImage(size: CGSize(width: 100, height: 80))
+        // shadow 单独开启 → totalPad = shadowMargin(8), 尺寸 = 116×96
+        let result = service.generateFinalImage(
+            from: image,
+            annotations: [],
+            showBorder: false,
+            showCornerRadius: false,
+            showShadow: true,
+            captureMode: .area
+        )
+        #expect(result != nil)
+        #expect(result!.size.width == 116)
+        #expect(result!.size.height == 96)
+    }
+
+    @Test func borderAndShadowTogetherAddBothMargins() {
+        let image = makeTestImage(size: CGSize(width: 100, height: 80))
+        // border + shadow → totalPad = 8 + 8 = 16, 尺寸 = 132×112
+        let result = service.generateFinalImage(
+            from: image,
+            annotations: [],
+            showBorder: true,
+            showCornerRadius: true,
+            showShadow: true,
+            captureMode: .area
+        )
+        #expect(result != nil)
+        #expect(result!.size.width == 132)
+        #expect(result!.size.height == 112)
     }
 
     // MARK: - New Annotation Types

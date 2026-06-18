@@ -21,6 +21,7 @@ final class ScreenshotExportService {
 
     private let exportPadding: CGFloat = 8
     private let exportCornerRadius: CGFloat = 8
+    private let shadowMargin: CGFloat = 8
 
     // MARK: - Image Generation
 
@@ -42,9 +43,13 @@ final class ScreenshotExportService {
         let scaleY = CGFloat(pixelHeight) / max(original.size.height, 1)
 
         let shouldOutlineWindowCapture = captureMode == .window
+        let shadowPad: CGFloat = showShadow ? shadowMargin : 0
+        let borderPad: CGFloat = showBorder ? exportPadding : 0
+        let totalPad = borderPad + shadowPad
+
         let finalSizePoints = CGSize(
-            width: original.size.width + (showBorder ? exportPadding * 2 : 0),
-            height: original.size.height + (showBorder ? exportPadding * 2 : 0)
+            width: original.size.width + totalPad * 2,
+            height: original.size.height + totalPad * 2
         )
 
         let finalPixelWidth = Int(round(finalSizePoints.width * scaleX))
@@ -72,14 +77,20 @@ final class ScreenshotExportService {
         context.scaleBy(x: scaleX, y: scaleY)
 
         let imageOrigin = CGPoint(
-            x: showBorder ? exportPadding : 0,
-            y: showBorder ? exportPadding : 0
+            x: totalPad,
+            y: totalPad
         )
         let imageRect = CGRect(origin: imageOrigin, size: original.size)
 
         if showBorder {
             context.setFillColor(NSColor(Theme.Colors.panelElevated).cgColor)
-            context.fill(CGRect(origin: .zero, size: finalSizePoints))
+            let borderRect = CGRect(
+                x: shadowPad,
+                y: shadowPad,
+                width: original.size.width + borderPad * 2,
+                height: original.size.height + borderPad * 2
+            )
+            context.fill(borderRect)
         }
 
         if showShadow {
