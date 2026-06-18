@@ -17,6 +17,7 @@ final class AppState: ObservableObject {
     @Published var translationError: String?
     @Published var lastCaptureMode: ScreenshotService.CaptureMode = .area
     @Published var translationFocusRequestID = UUID()
+    @Published var ocrResultText: String?
 
     func setScreenshot(_ image: NSImage, mode: ScreenshotService.CaptureMode = .area) {
         capturedImage = image

@@ -41,7 +41,6 @@ final class CaptureCoordinator {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             ScreenshotService.shared.capture(mode: .area) { result in
                 guard case .success(let image) = result else {
-                    // cancelled 或 failed 静默返回
                     return
                 }
                 DispatchQueue.main.async {
@@ -56,6 +55,8 @@ final class CaptureCoordinator {
                         pb.setString(text, forType: .string)
                         NSSound(named: "Glass")?.play()
                         self.logger.notice("OCR完成: 已复制 \(text.count) 字符")
+                        self.appState.ocrResultText = text
+                        self.windowController?.showWindow()
                     }
                 }
             }

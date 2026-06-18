@@ -12,11 +12,17 @@ struct RootView: View {
         ZStack(alignment: .topTrailing) {
             // Main content fills the entire panel
             Group {
-                switch appState.mode {
-                case .actions:
-                    ScreenshotResultView(appState: appState, annotationState: annotationState)
-                case .translation:
-                    TranslationView(appState: appState)
+                if let ocrText = appState.ocrResultText {
+                    OCRResultView(text: ocrText) {
+                        appState.ocrResultText = nil
+                    }
+                } else {
+                    switch appState.mode {
+                    case .actions:
+                        ScreenshotResultView(appState: appState, annotationState: annotationState)
+                    case .translation:
+                        TranslationView(appState: appState)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
