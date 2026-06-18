@@ -19,7 +19,33 @@ struct AnnotationCanvas: View {
         GeometryReader { geometry in
             ZStack(alignment: .topLeading) {
                 Canvas { context, size in
-                    for annotation in state.annotations {
+                    // Pass 1: dim overlay with highlighter holes punched through
+                    let highlighters = state.annotations.filter { $0.type == .highlighter }
+                    if !highlighters.isEmpty {
+                        context.fill(
+                            Path(CGRect(origin: .zero, size: size)),
+                            with: .color(.black.opacity(0.35))
+                        )
+                        context.blendMode = .clear
+                        for ann in highlighters {
+                            let start = ann.absoluteStart(canvasSize: size)
+                            let end = ann.absoluteEnd(canvasSize: size)
+                            let rect = CGRect(
+                                x: min(start.x, end.x),
+                                y: min(start.y, end.y),
+                                width: abs(end.x - start.x),
+                                height: abs(end.y - start.y)
+                            )
+                            context.fill(
+                                Path(roundedRect: rect, cornerRadius: Annotation.RenderStyle.cornerRadius),
+                                with: .color(.clear)
+                            )
+                        }
+                        context.blendMode = .normal
+                    }
+
+                    // Pass 2: draw non-highlighter annotations
+                    for annotation in state.annotations where annotation.type != .highlighter {
                         let isSelected = annotation.id == state.selectedAnnotationId
                         let isDragging = annotation.id == draggingAnnotationId
 
@@ -421,16 +447,8 @@ struct AnnotationCanvas: View {
                 style: StrokeStyle(lineWidth: Annotation.RenderStyle.lineWidth, lineCap: .round, lineJoin: .round)
             )
         case .highlighter:
-            let rect = CGRect(
-                x: min(start.x, end.x),
-                y: min(start.y, end.y),
-                width: abs(end.x - start.x),
-                height: abs(end.y - start.y)
-            )
-            context.fill(
-                Path(roundedRect: rect, cornerRadius: Annotation.RenderStyle.cornerRadius),
-                with: .color(color.opacity(0.35))
-            )
+            // Rendered via dim overlay + clear blend hole above; nothing to draw here
+            break
         case .arrow:
             var path = Path()
             path.move(to: start)
@@ -476,12 +494,13 @@ struct AnnotationCanvas: View {
             )
         case .numberedMarker:
             let radius = Annotation.RenderStyle.markerRadius
-            let circleRect = CGRect(x: start.x - radius, y: start.y - radius, width: radius * 2, height: radius * 2)
+            let center = start
+            let circleRect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
             context.fill(Path(ellipseIn: circleRect), with: .color(color))
             let numberText = Text(annotation.text)
                 .font(.system(size: 14, weight: .bold))
                 .foregroundColor(.white)
-            context.draw(numberText, in: circleRect)
+            context.draw(numberText, at: center, anchor: .center)
         case .text:
             let text = Text(annotation.text)
                 .font(.system(size: Annotation.RenderStyle.textFontSize, weight: .medium))

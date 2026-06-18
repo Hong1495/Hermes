@@ -143,7 +143,39 @@ final class ScreenshotExportService {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = graphicsContext
 
-        for annotation in annotations {
+        // Pass 1: dim overlay with highlighter holes
+        let highlighters = annotations.filter { $0.type == .highlighter }
+        if !highlighters.isEmpty {
+            context.setFillColor(NSColor.black.withAlphaComponent(0.35).cgColor)
+            context.fill(CGRect(origin: .zero, size: originalSize))
+            context.saveGState()
+            context.setBlendMode(.clear)
+            for ann in highlighters {
+                let hStart = exportPoint(
+                    for: ann.absoluteStart(canvasSize: originalSize),
+                    originalHeight: originalSize.height,
+                    imageOrigin: imageOrigin
+                )
+                let hEnd = exportPoint(
+                    for: ann.absoluteEnd(canvasSize: originalSize),
+                    originalHeight: originalSize.height,
+                    imageOrigin: imageOrigin
+                )
+                let rect = CGRect(
+                    x: min(hStart.x, hEnd.x),
+                    y: min(hStart.y, hEnd.y),
+                    width: abs(hEnd.x - hStart.x),
+                    height: abs(hEnd.y - hStart.y)
+                )
+                let path = NSBezierPath(roundedRect: rect, xRadius: Annotation.RenderStyle.cornerRadius, yRadius: Annotation.RenderStyle.cornerRadius)
+                context.addPath(path.cgPath)
+                context.fillPath()
+            }
+            context.restoreGState()
+        }
+
+        // Pass 2: render non-highlighter annotations
+        for annotation in annotations where annotation.type != .highlighter {
             let start = exportPoint(
                 for: annotation.absoluteStart(canvasSize: originalSize),
                 originalHeight: originalSize.height,
@@ -157,7 +189,7 @@ final class ScreenshotExportService {
             let color = NSColor(annotation.color)
 
             switch annotation.type {
-            case .rectangle, .highlighter:
+            case .rectangle:
                 let rect = CGRect(
                     x: min(start.x, end.x),
                     y: min(start.y, end.y),
@@ -165,14 +197,12 @@ final class ScreenshotExportService {
                     height: abs(end.y - start.y)
                 )
                 let path = NSBezierPath(roundedRect: rect, xRadius: Annotation.RenderStyle.cornerRadius, yRadius: Annotation.RenderStyle.cornerRadius)
-                if annotation.type == .highlighter {
-                    color.withAlphaComponent(0.35).setFill()
-                    path.fill()
-                } else {
-                    color.setStroke()
-                    path.lineWidth = Annotation.RenderStyle.lineWidth
-                    path.stroke()
-                }
+                color.setStroke()
+                path.lineWidth = Annotation.RenderStyle.lineWidth
+                path.stroke()
+            case .highlighter:
+                // Rendered via dim overlay + clear blend hole above
+                break
             case .arrow:
                 let path = NSBezierPath()
                 path.move(to: start)
