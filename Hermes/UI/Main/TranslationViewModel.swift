@@ -25,6 +25,15 @@ final class TranslationViewModel: ObservableObject {
 
     init(appState: AppState) {
         self.appState = appState
+        sourceLang = UserDefaults.standard.string(forKey: AppSettings.Key.lastSourceLang) ?? "auto"
+        targetLang = UserDefaults.standard.string(forKey: AppSettings.Key.lastTargetLang) ?? "zh-CN"
+        if sourceLang != "auto" {
+            targetSelectionWasManual = true
+        }
+    }
+
+    var autoTranslateOnPaste: Bool {
+        UserDefaults.standard.bool(forKey: AppSettings.Key.autoTranslateOnPaste)
     }
 
     func langOptions(includeAuto: Bool) -> [(label: String, code: String)] {
@@ -169,6 +178,7 @@ final class TranslationViewModel: ObservableObject {
         sourceLang = targetLang
         targetLang = originalSource
         targetSelectionWasManual = true
+        persistLanguagePair()
     }
 
     func pasteFromClipboard() {
@@ -176,7 +186,9 @@ final class TranslationViewModel: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines),
            !text.isEmpty {
             appState.translationInput = text
-            scheduleTranslation(immediate: true)
+            if autoTranslateOnPaste {
+                scheduleTranslation(immediate: true)
+            }
         }
     }
 
@@ -196,10 +208,12 @@ final class TranslationViewModel: ObservableObject {
         sourceLang = "auto"
         targetLang = "zh-CN"
         targetSelectionWasManual = false
+        persistLanguagePair()
     }
 
     func onSourceLangChanged() {
         targetSelectionWasManual = false
+        persistLanguagePair()
         scheduleTranslation(immediate: true)
     }
 
@@ -207,10 +221,17 @@ final class TranslationViewModel: ObservableObject {
         if !isApplyingAutomaticTargetSelection {
             targetSelectionWasManual = true
         }
+        persistLanguagePair()
         scheduleTranslation(immediate: true)
     }
 
     func onDisappear() {
         pendingTranslationTask?.cancel()
+        persistLanguagePair()
+    }
+
+    private func persistLanguagePair() {
+        UserDefaults.standard.set(sourceLang, forKey: AppSettings.Key.lastSourceLang)
+        UserDefaults.standard.set(targetLang, forKey: AppSettings.Key.lastTargetLang)
     }
 }

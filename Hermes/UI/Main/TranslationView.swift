@@ -218,6 +218,14 @@ struct TranslationView: View {
             .modernStyle(.ghost)
 
             Spacer()
+
+            Toggle("粘贴后自动翻译", isOn: .init(
+                get: { viewModel.autoTranslateOnPaste },
+                set: { UserDefaults.standard.set($0, forKey: AppSettings.Key.autoTranslateOnPaste) }
+            ))
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .font(.system(size: 11))
         }
     }
 

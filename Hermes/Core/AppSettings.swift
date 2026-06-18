@@ -19,6 +19,9 @@ enum AppSettings {
         static let shortcutTranslate = "shortcut_translate"
         static let windowSizeScreenshot = "WindowSize_Screenshot"
         static let selectedJapaneseColor = "SelectedJapaneseColor"
+        static let lastSourceLang = "lastSourceLang"
+        static let lastTargetLang = "lastTargetLang"
+        static let autoTranslateOnPaste = "autoTranslateOnPaste"
     }
 
     // MARK: - Default Values
@@ -27,6 +30,7 @@ enum AppSettings {
         static let appTheme = "System"
         static let ocrLanguages = "zh-Hans,en-US"
         static let ocrFallbackLanguages = ["zh-Hans", "en-US"]
+        static let autoTranslateOnPaste = true
     }
 
     // MARK: - Appearance
