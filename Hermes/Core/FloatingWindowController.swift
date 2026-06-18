@@ -4,21 +4,23 @@ import SwiftUI
 /// 浮动窗口控制器，管理截图结果和翻译界面的显示
 @MainActor
 class FloatingWindowController: NSObject, NSWindowDelegate {
-    
+
     // MARK: - Properties
-    
+
     var panel: FloatingPanel!
-    
+    private let appState: AppState
+
     private let translationSize = NSSize(width: 820, height: 640)
     private let screenshotSize = NSSize(width: 1320, height: 860)
-    
+
     // MARK: - Initialization
-    
-    override init() {
+
+    init(appState: AppState) {
+        self.appState = appState
         super.init()
-        
-        let hostingView = NSHostingView(rootView: RootView())
-        
+
+        let hostingView = NSHostingView(rootView: RootView(appState: appState))
+
         panel = FloatingPanel(
             contentRect: NSRect(x: 0, y: 0, width: 600, height: 500),
             backing: .buffered,
@@ -29,39 +31,39 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
         panel.delegate = self
         panel.orderOut(nil)
     }
-    
+
     // MARK: - Public Methods
-    
+
     func toggleWindow() {
         panel.isVisible ? closeWindow() : showWindow()
     }
-    
+
     func closeWindow() {
         panel.alphaValue = 0
         panel.orderOut(nil)
         removeEventMonitors()
     }
-    
+
     func showWindow() {
         guard let screen = screenForMouse() else { return }
-        
+
         // 确保清理旧的监听器
         removeEventMonitors()
-        
-        
-        let mode = AppState.shared.mode
+
+
+        let mode = appState.mode
         let targetSize = calculateSize(for: mode)
         let origin = calculateOrigin(for: mode, size: targetSize, screen: screen)
-        
+
         configureWindowConstraints(for: mode)
-        
+
         // 同步显示流程，确保 100% 可靠
         NSApp.activate(ignoringOtherApps: true)
         panel.alphaValue = 1.0
         panel.setFrame(NSRect(origin: origin, size: targetSize), display: true)
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
-        
+
         // 双重保险：延迟再次激活
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             self?.panel.orderFrontRegardless()
@@ -73,22 +75,22 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
             self?.setupEventMonitors()
         }
     }
-    
+
     // MARK: - Private Helpers
-    
+
     private func screenForMouse() -> NSScreen? {
         let mouseLoc = NSEvent.mouseLocation
         return NSScreen.screens.first { NSMouseInRect(mouseLoc, $0.frame, false) }
             ?? NSScreen.main
             ?? NSScreen.screens.first
     }
-    
+
     private func calculateSize(for mode: AppMode) -> NSSize {
         if mode == .translation {
             return translationSize
         }
-        
-        if let saved = UserDefaults.standard.string(forKey: "WindowSize_Screenshot") {
+
+        if let saved = UserDefaults.standard.string(forKey: AppSettings.Key.windowSizeScreenshot) {
             let size = NSSizeFromString(saved)
             if size.width > 200 && size.height > 200 {
                 return NSSize(
@@ -99,25 +101,25 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
         }
         return screenshotSize
     }
-    
+
     private func calculateOrigin(for mode: AppMode, size: NSSize, screen: NSScreen) -> NSPoint {
         let screenRect = screen.visibleFrame
         let mouseLoc = NSEvent.mouseLocation
-        
+
         var origin: NSPoint
         if mode == .translation {
             origin = NSPoint(x: mouseLoc.x - size.width / 2, y: mouseLoc.y - size.height / 2)
         } else {
             origin = NSPoint(x: screenRect.midX - size.width / 2, y: screenRect.midY - size.height / 2)
         }
-        
+
         // 边界安全校验
         origin.x = max(screenRect.minX + 10, min(origin.x, screenRect.maxX - size.width - 10))
         origin.y = max(screenRect.minY + 10, min(origin.y, screenRect.maxY - size.height - 10))
-        
+
         return origin
     }
-    
+
     private func configureWindowConstraints(for mode: AppMode) {
         if mode == .translation {
             panel.minSize = NSSize(width: 720, height: 560)
@@ -127,17 +129,17 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
             panel.maxSize = NSSize(width: 1800, height: 1280)
         }
     }
-    
+
     // MARK: - Event Monitoring
-    
+
     private var localMonitor: Any?
     private var globalMonitor: Any?
     private var activationObserver: NSObjectProtocol?
-    
+
     private func setupEventMonitors() {
         // 1. App Activation Monitor: 监听应用切换
-        // 只有当用户切换到“普通应用”（如浏览器、Finder）时才自动关闭。
-        // 如果切换到“辅助应用”（如剪贴板工具、截图工具，通常是 .accessory），则保持窗口显示，以便它们能完成操作（如粘贴）。
+        // 只有当用户切换到"普通应用"（如浏览器、Finder）时才自动关闭。
+        // 如果切换到"辅助应用"（如剪贴板工具、截图工具，通常是 .accessory），则保持窗口显示，以便它们能完成操作（如粘贴）。
         if activationObserver == nil {
             activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
                 forName: NSWorkspace.didActivateApplicationNotification,
@@ -157,7 +159,7 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
                 }
             }
         }
-        
+
         // 2. Local Monitor: 监听应用内的点击
         if localMonitor == nil {
             localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
@@ -223,13 +225,13 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
             isManagedWindow(window) && window.isVisible && window.frame.contains(point)
         }
     }
-    
+
     private func removeEventMonitors() {
         if let observer = activationObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
             activationObserver = nil
         }
-        
+
         if let monitor = localMonitor {
             NSEvent.removeMonitor(monitor)
             localMonitor = nil
@@ -240,13 +242,13 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
             globalMonitor = nil
         }
     }
-    
+
     // MARK: - NSWindowDelegate
-    
+
     func windowDidResize(_ notification: Notification) {
-        if AppState.shared.mode != .translation {
+        if appState.mode != .translation {
             let sizeString = NSStringFromSize(panel.frame.size)
-            UserDefaults.standard.set(sizeString, forKey: "WindowSize_Screenshot")
+            UserDefaults.standard.set(sizeString, forKey: AppSettings.Key.windowSizeScreenshot)
         }
     }
 }

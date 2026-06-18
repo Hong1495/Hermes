@@ -96,7 +96,7 @@ struct JapaneseColorPalette {
     ]
     
     static func loadSelectedColor() -> JapaneseColor {
-        if let data = UserDefaults.standard.data(forKey: "SelectedJapaneseColor"),
+        if let data = UserDefaults.standard.data(forKey: AppSettings.Key.selectedJapaneseColor),
            let decoded = try? JSONDecoder().decode(JapaneseColor.self, from: data) {
             return decoded
         }
@@ -105,7 +105,7 @@ struct JapaneseColorPalette {
     
     static func saveSelectedColor(_ color: JapaneseColor) {
         if let encoded = try? JSONEncoder().encode(color) {
-            UserDefaults.standard.set(encoded, forKey: "SelectedJapaneseColor")
+            UserDefaults.standard.set(encoded, forKey: AppSettings.Key.selectedJapaneseColor)
         }
     }
 }

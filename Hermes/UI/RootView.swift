@@ -1,8 +1,12 @@
 import SwiftUI
 
 struct RootView: View {
-    @ObservedObject private var appState = AppState.shared
+    @ObservedObject private var appState: AppState
     @StateObject private var annotationState = AnnotationState()
+
+    init(appState: AppState) {
+        self.appState = appState
+    }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -10,9 +14,9 @@ struct RootView: View {
             Group {
                 switch appState.mode {
                 case .actions:
-                    ScreenshotResultView(annotationState: annotationState)
+                    ScreenshotResultView(appState: appState, annotationState: annotationState)
                 case .translation:
-                    TranslationView()
+                    TranslationView(appState: appState)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -48,3 +52,26 @@ struct RootView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("Root — Empty State") {
+    RootView(appState: AppState())
+        .frame(width: 600, height: 500)
+}
+
+#Preview("Root — Screenshot Mode") {
+    let appState = AppState()
+    let nsImage = NSImage(systemSymbolName: "photo", accessibilityDescription: nil)!
+    appState.setScreenshot(nsImage, mode: .area)
+    return RootView(appState: appState)
+        .frame(width: 600, height: 500)
+}
+
+#Preview("Root — Translation Mode") {
+    let appState = AppState()
+    appState.prepareForTranslationWorkspace()
+    appState.translationInput = "こんにちは世界"
+    return RootView(appState: appState)
+        .frame(width: 820, height: 640)
+}
+#endif

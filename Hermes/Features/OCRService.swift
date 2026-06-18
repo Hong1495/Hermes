@@ -20,7 +20,7 @@ class OCRService {
 
     /// 读取用户在设置中选择的 OCR 语言，逗号分隔；为空则用默认中英文
     private var configuredLanguages: [String] {
-        let stored = UserDefaults.standard.string(forKey: "ocrLanguages") ?? "zh-Hans,en-US"
+        let stored = UserDefaults.standard.string(forKey: AppSettings.Key.ocrLanguages) ?? AppSettings.Default.ocrLanguages
         let codes = stored
             .split(separator: ",")
             .map { String($0).trimmingCharacters(in: .whitespaces) }
@@ -33,10 +33,7 @@ class OCRService {
 
         let supported: Set<String>
         do {
-            supported = Set(try VNRecognizeTextRequest.supportedRecognitionLanguages(
-                for: .accurate,
-                revision: VNRecognizeTextRequestRevision3
-            ))
+            supported = Set(try VNRecognizeTextRequest().supportedRecognitionLanguages())
         } catch {
             return configured
         }

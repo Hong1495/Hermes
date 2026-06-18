@@ -322,9 +322,9 @@ struct AnnotationCanvas: View {
                 height: abs(end.y - start.y)
             )
             context.stroke(
-                Path(roundedRect: rect, cornerRadius: 8),
+                Path(roundedRect: rect, cornerRadius: Annotation.RenderStyle.cornerRadius),
                 with: .color(color),
-                style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
+                style: StrokeStyle(lineWidth: Annotation.RenderStyle.lineWidth, lineCap: .round, lineJoin: .round)
             )
         case .arrow:
             var path = Path()
@@ -332,8 +332,8 @@ struct AnnotationCanvas: View {
             path.addLine(to: end)
 
             let angle = atan2(end.y - start.y, end.x - start.x)
-            let arrowLength: CGFloat = 16
-            let arrowAngle: CGFloat = .pi / 6
+            let arrowLength: CGFloat = Annotation.RenderStyle.arrowLength
+            let arrowAngle: CGFloat = Annotation.RenderStyle.arrowAngle
 
             let tip1 = CGPoint(
                 x: end.x - arrowLength * cos(angle - arrowAngle),
@@ -352,11 +352,11 @@ struct AnnotationCanvas: View {
             context.stroke(
                 path,
                 with: .color(color),
-                style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
+                style: StrokeStyle(lineWidth: Annotation.RenderStyle.lineWidth, lineCap: .round, lineJoin: .round)
             )
         case .text:
             let text = Text(annotation.text)
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: Annotation.RenderStyle.textFontSize, weight: .medium))
                 .foregroundStyle(color)
             context.draw(text, at: start, anchor: .topLeading)
         }

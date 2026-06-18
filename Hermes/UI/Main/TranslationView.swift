@@ -2,38 +2,20 @@ import SwiftUI
 import Translation
 
 struct TranslationView: View {
-    @ObservedObject private var appState = AppState.shared
-
-    @State private var sourceLang = "auto"
-    @State private var targetLang = "zh-CN"
-    @State private var pendingTranslationTask: Task<Void, Never>?
-    @State private var translationRequestID = UUID()
-    @State private var translationConfig: TranslationSession.Configuration?
-    @State private var targetSelectionWasManual = false
-    @State private var isApplyingAutomaticTargetSelection = false
+    @ObservedObject private var appState: AppState
+    @StateObject private var viewModel: TranslationViewModel
     @FocusState private var isInputFocused: Bool
 
     private let editorHorizontalInset: CGFloat = 12
     private let editorVerticalInset: CGFloat = 10
 
-    private let languages: [(label: String, code: String)] = [
-        ("自动识别", "auto"),
-        ("中文", "zh-CN"),
-        ("英语", "en"),
-        ("日语", "ja"),
-        ("韩语", "ko")
-    ]
-
-    private func convertToLanguage(_ code: String) -> Locale.Language {
-        if code == "zh-CN" {
-            return Locale.Language(identifier: "zh_Hans")
-        }
-        return Locale.Language(identifier: code)
+    init(appState: AppState) {
+        self.appState = appState
+        self._viewModel = StateObject(wrappedValue: TranslationViewModel(appState: appState))
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Controls row with language selectors
             controlsRow
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -41,7 +23,6 @@ struct TranslationView: View {
             Divider()
                 .foregroundStyle(Theme.Colors.separator)
 
-            // Content area
             GeometryReader { geometry in
                 let isWideLayout = geometry.size.width >= 800
 
@@ -71,55 +52,57 @@ struct TranslationView: View {
             Divider()
                 .foregroundStyle(Theme.Colors.separator)
 
-            // Footer
             footerBar
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
         }
-        .translationTask(translationConfig) { session in
-            await performTranslation(session: session)
+        .translationTask(viewModel.translationConfig) { session in
+            await viewModel.performTranslation(session: session)
         }
         .hideScrollIndicators()
         .onAppear {
-            focusInputSoon()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInputFocused = true
+            }
         }
         .onChange(of: appState.translationFocusRequestID) { _, _ in
-            focusInputSoon()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInputFocused = true
+            }
         }
         .onChange(of: appState.translationInput) { _, _ in
-            scheduleTranslation()
+            viewModel.scheduleTranslation()
         }
-        .onChange(of: sourceLang) { _, _ in
-            scheduleTranslation(immediate: true)
+        .onChange(of: viewModel.sourceLang) { _, _ in
+            viewModel.onSourceLangChanged()
         }
-        .onChange(of: targetLang) { _, _ in
-            if !isApplyingAutomaticTargetSelection {
-                targetSelectionWasManual = true
-            }
-            scheduleTranslation(immediate: true)
+        .onChange(of: viewModel.targetLang) { _, _ in
+            viewModel.onTargetLangChanged()
         }
         .onDisappear {
-            pendingTranslationTask?.cancel()
+            viewModel.onDisappear()
         }
     }
 
+    // MARK: - Controls Row
+
     private var controlsRow: some View {
         HStack(alignment: .center, spacing: Theme.Spacing.small) {
-            languageField(title: "源语言", selection: $sourceLang, includeAuto: true)
+            languageField(title: "源语言", selection: $viewModel.sourceLang, includeAuto: true)
 
-            Button(action: swapLanguages) {
+            Button(action: { viewModel.swapLanguages() }) {
                 Image(systemName: "arrow.left.arrow.right")
                     .frame(width: 26, height: 26)
             }
             .modernStyle(.icon)
-            .disabled(sourceLang == "auto")
+            .disabled(viewModel.sourceLang == "auto")
 
-            languageField(title: "目标语言", selection: $targetLang, includeAuto: false)
+            languageField(title: "目标语言", selection: $viewModel.targetLang, includeAuto: false)
 
             Spacer(minLength: 8)
 
             Button(action: {
-                scheduleTranslation(immediate: true)
+                viewModel.scheduleTranslation(immediate: true)
             }) {
                 Label("翻译", systemImage: "arrow.right.circle")
             }
@@ -128,7 +111,8 @@ struct TranslationView: View {
         }
     }
 
-    // MARK: - Input Pane (no card wrapper, direct content)
+    // MARK: - Input Pane
+
     private var inputPane: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
@@ -169,7 +153,8 @@ struct TranslationView: View {
         .background(Theme.Colors.background)
     }
 
-    // MARK: - Result Pane (no card wrapper, direct content)
+    // MARK: - Result Pane
+
     private var resultPane: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
@@ -212,20 +197,22 @@ struct TranslationView: View {
         .background(Theme.Colors.panelBackground)
     }
 
+    // MARK: - Footer Bar
+
     private var footerBar: some View {
         HStack(spacing: 6) {
-            Button(action: pasteFromClipboard) {
+            Button(action: { viewModel.pasteFromClipboard() }) {
                 Label("粘贴", systemImage: "doc.on.clipboard")
             }
             .modernStyle(.ghost)
 
-            Button(action: copyTranslatedText) {
+            Button(action: { viewModel.copyTranslatedText() }) {
                 Label("复制结果", systemImage: "doc.on.doc")
             }
             .modernStyle(.secondary)
             .disabled(appState.translatedText.isEmpty)
 
-            Button(action: clearTranslation) {
+            Button(action: { viewModel.clearTranslation() }) {
                 Label("清空", systemImage: "xmark")
             }
             .modernStyle(.ghost)
@@ -234,6 +221,8 @@ struct TranslationView: View {
         }
     }
 
+    // MARK: - Helpers
+
     private func languageField(title: String, selection: Binding<String>, includeAuto: Bool) -> some View {
         HStack(spacing: 4) {
             Text(title)
@@ -241,7 +230,7 @@ struct TranslationView: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
 
             Picker(title, selection: selection) {
-                ForEach(filteredLanguages(includeAuto: includeAuto), id: \.code) { language in
+                ForEach(viewModel.langOptions(includeAuto: includeAuto), id: \.code) { language in
                     Text(language.label).tag(language.code)
                 }
             }
@@ -249,172 +238,20 @@ struct TranslationView: View {
             .frame(width: 100)
         }
     }
-
-    private func filteredLanguages(includeAuto: Bool) -> [(label: String, code: String)] {
-        includeAuto ? languages : languages.filter { $0.code != "auto" }
-    }
-
-    // MARK: - Translation Logic
-
-    private func resolveLanguages(for text: String) -> (source: Locale.Language, target: Locale.Language, suggestedTargetCode: String?) {
-        if sourceLang == "auto" {
-            let service = TranslationService.shared
-            let detected = service.detectLanguage(for: text)
-
-            if service.isChinese(detected) {
-                let automaticTarget = targetSelectionWasManual ? targetLang : "en"
-                return (detected, convertToLanguage(automaticTarget), targetSelectionWasManual ? nil : automaticTarget)
-            } else {
-                let automaticTarget = targetSelectionWasManual ? targetLang : "zh-CN"
-                return (detected, convertToLanguage(automaticTarget), targetSelectionWasManual ? nil : automaticTarget)
-            }
-        }
-        return (convertToLanguage(sourceLang), convertToLanguage(targetLang), nil)
-    }
-
-    private func scheduleTranslation(immediate: Bool = false) {
-        pendingTranslationTask?.cancel()
-
-        let trimmed = appState.translationInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            translationRequestID = UUID()
-            appState.translatedText = ""
-            appState.translationError = nil
-            appState.isTranslating = false
-            return
-        }
-
-        translationRequestID = UUID()
-
-        let delay: UInt64 = immediate ? 0 : 450_000_000
-
-        pendingTranslationTask = Task {
-            if delay > 0 {
-                try? await Task.sleep(nanoseconds: delay)
-            }
-            guard !Task.isCancelled else { return }
-
-            await MainActor.run {
-                appState.isTranslating = true
-                appState.translationError = nil
-                triggerTranslation(for: trimmed)
-            }
-        }
-    }
-
-    private func triggerTranslation(for text: String) {
-        let (source, target, suggestedTargetCode) = resolveLanguages(for: text)
-
-        // 异步预检查语言包是否已安装，避免 TranslationSession 弹出系统下载框
-        Task {
-            let status = await LanguageAvailability().status(from: source, to: target)
-            guard status == .installed else {
-                await MainActor.run {
-                    appState.translatedText = ""
-                    appState.translationError = "未安装「\(source.languageCode?.identifier ?? "?") → \(target.languageCode?.identifier ?? "?")」翻译语言包，请在系统设置 → 通用 → 翻译与实时翻译中下载。"
-                    appState.isTranslating = false
-                }
-                return
-            }
-
-            await MainActor.run {
-                applyTranslationConfig(source: source, target: target, suggestedTargetCode: suggestedTargetCode)
-            }
-        }
-    }
-
-    private func applyTranslationConfig(source: Locale.Language, target: Locale.Language, suggestedTargetCode: String?) {
-        if let suggestedTargetCode,
-           suggestedTargetCode != targetLang {
-            isApplyingAutomaticTargetSelection = true
-            withAnimation(.easeInOut(duration: 0.2)) {
-                targetLang = suggestedTargetCode
-            }
-            DispatchQueue.main.async {
-                isApplyingAutomaticTargetSelection = false
-            }
-            return
-        }
-
-        if let existing = translationConfig,
-           existing.source == source,
-           existing.target == target {
-            translationConfig?.invalidate()
-        } else {
-            translationConfig = .init(source: source, target: target)
-        }
-    }
-
-    private func performTranslation(session: TranslationSession) async {
-        let trimmed = appState.translationInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            await MainActor.run {
-                appState.isTranslating = false
-            }
-            return
-        }
-
-        let requestID = translationRequestID
-
-        do {
-            let result = try await TranslationService.shared.translate(
-                text: trimmed,
-                using: session
-            )
-
-            await MainActor.run {
-                guard translationRequestID == requestID else { return }
-                appState.translatedText = result.text
-                appState.translationError = nil
-                appState.isTranslating = false
-            }
-        } catch {
-            guard !Task.isCancelled else { return }
-
-            await MainActor.run {
-                guard translationRequestID == requestID else { return }
-                appState.translatedText = ""
-                appState.translationError = error.localizedDescription
-                appState.isTranslating = false
-            }
-        }
-    }
-
-    private func swapLanguages() {
-        guard sourceLang != "auto" else { return }
-        let originalSource = sourceLang
-        sourceLang = targetLang
-        targetLang = originalSource
-        targetSelectionWasManual = true
-    }
-
-    private func pasteFromClipboard() {
-        if let text = NSPasteboard.general.string(forType: .string)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-           !text.isEmpty {
-            appState.translationInput = text
-            scheduleTranslation(immediate: true)
-        }
-    }
-
-    private func focusInputSoon() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            isInputFocused = true
-        }
-    }
-
-    private func copyTranslatedText() {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(appState.translatedText, forType: .string)
-    }
-
-    private func clearTranslation() {
-        pendingTranslationTask?.cancel()
-        appState.translationInput = ""
-        appState.translatedText = ""
-        appState.translationError = nil
-        appState.isTranslating = false
-        translationConfig = nil
-    }
 }
+
+#if DEBUG
+#Preview("Translation — Empty") {
+    TranslationView(appState: AppState())
+        .frame(width: 820, height: 640)
+}
+
+#Preview("Translation — With Input") {
+    let appState = AppState()
+    appState.prepareForTranslationWorkspace()
+    appState.translationInput = "こんにちは世界"
+    appState.translatedText = "Hello, world"
+    return TranslationView(appState: appState)
+        .frame(width: 820, height: 640)
+}
+#endif

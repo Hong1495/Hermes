@@ -2,11 +2,11 @@ import SwiftUI
 import ServiceManagement
 
 struct GeneralSettingsView: View {
-    @AppStorage("launchAtLogin") var launchAtLogin = false
-    @AppStorage("hideMenuBarIcon") var hideMenuBarIcon = false
-    @AppStorage("appTheme") var appTheme: String = "System" // System, Light, Dark
-    @AppStorage("defaultSavePath") var defaultSavePath: String = ""
-    @AppStorage("ocrLanguages") var ocrLanguages: String = "zh-Hans,en-US"
+    @AppStorage(AppSettings.Key.launchAtLogin) var launchAtLogin = false
+    @AppStorage(AppSettings.Key.hideMenuBarIcon) var hideMenuBarIcon = false
+    @AppStorage(AppSettings.Key.appTheme) var appTheme: String = AppSettings.Default.appTheme // System, Light, Dark
+    @AppStorage(AppSettings.Key.defaultSavePath) var defaultSavePath: String = ""
+    @AppStorage(AppSettings.Key.ocrLanguages) var ocrLanguages: String = AppSettings.Default.ocrLanguages
 
     /// OCR 语言选择的镜像数组（从 ocrLanguages 字符串解析）
     @State private var selectedOCRLanguages: Set<String> = []
@@ -30,7 +30,7 @@ struct GeneralSettingsView: View {
 
                 Toggle("隐藏菜单栏图标", isOn: $hideMenuBarIcon)
                     .onChange(of: hideMenuBarIcon) { _, newValue in
-                        NotificationCenter.default.post(name: NSNotification.Name("UpdateMenuBarState"), object: nil)
+                        NotificationCenter.default.post(name: .updateMenuBarState, object: nil)
                     }
 
                 Picker("外观", selection: $appTheme) {
@@ -40,7 +40,7 @@ struct GeneralSettingsView: View {
                 }
                 .pickerStyle(.menu)
                 .onChange(of: appTheme) { _, newValue in
-                    updateAppearance(newValue)
+                    AppSettings.updateAppearance(newValue)
                 }
             }
 
@@ -81,6 +81,7 @@ struct GeneralSettingsView: View {
                 if !defaultSavePath.isEmpty {
                     Button("重置为桌面") {
                         defaultSavePath = ""
+                        UserDefaults.standard.removeObject(forKey: AppSettings.Key.defaultSavePathBookmark)
                     }
                     .foregroundColor(.red)
                 }
@@ -101,7 +102,7 @@ struct GeneralSettingsView: View {
     /// 将多选结果写回 AppStorage（逗号分隔）
     private func persistOCRLanguages() {
         if selectedOCRLanguages.isEmpty {
-            ocrLanguages = "zh-Hans,en-US"
+            ocrLanguages = AppSettings.Default.ocrLanguages
         } else {
             // 按 supportedLanguages 的固定顺序输出，避免每次保存顺序抖动
             let ordered = OCRService.supportedLanguages
@@ -110,17 +111,7 @@ struct GeneralSettingsView: View {
             ocrLanguages = ordered.joined(separator: ",")
         }
     }
-    
-    private func updateAppearance(_ theme: String) {
-        let appearance: NSAppearance?
-        switch theme {
-        case "Light": appearance = NSAppearance(named: .aqua)
-        case "Dark": appearance = NSAppearance(named: .darkAqua)
-        default: appearance = nil
-        }
-        NSApp.appearance = appearance
-    }
-    
+
     private func selectFolder() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
@@ -128,11 +119,11 @@ struct GeneralSettingsView: View {
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
         panel.title = "选择默认保存目录"
-        
+
         if panel.runModal() == .OK {
             if let url = panel.url {
                 defaultSavePath = url.path
-                
+
                 // Create Security Scoped Bookmark
                 do {
                     let bookmarkData = try url.bookmarkData(
@@ -140,7 +131,7 @@ struct GeneralSettingsView: View {
                         includingResourceValuesForKeys: nil,
                         relativeTo: nil
                     )
-                    UserDefaults.standard.set(bookmarkData, forKey: "defaultSavePathBookmark")
+                    UserDefaults.standard.set(bookmarkData, forKey: AppSettings.Key.defaultSavePathBookmark)
                 } catch {
                     // 创建 bookmark 失败时仅保留路径，不影响保存功能
                 }

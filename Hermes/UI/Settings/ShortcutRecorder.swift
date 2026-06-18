@@ -1,20 +1,6 @@
 import SwiftUI
 import Carbon
 
-struct Shortcut: Codable, Equatable {
-    var key: KeyCode
-    var modifiers: NSEvent.ModifierFlags.RawValue
-    
-    var nsModifiers: NSEvent.ModifierFlags {
-        return NSEvent.ModifierFlags(rawValue: modifiers)
-    }
-    
-    init(key: KeyCode, modifiers: NSEvent.ModifierFlags) {
-        self.key = key
-        self.modifiers = modifiers.rawValue
-    }
-}
-
 struct ShortcutRecorder: View {
     let key: String // UserDefaults key
     let defaultShortcut: Shortcut

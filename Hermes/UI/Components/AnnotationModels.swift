@@ -15,6 +15,15 @@ struct Annotation: Identifiable {
         case text
     }
 
+    /// 屏幕绘制与导出共用渲染常量，避免分叉
+    enum RenderStyle {
+        static let lineWidth: CGFloat = 3
+        static let arrowLength: CGFloat = 16
+        static let arrowAngle: CGFloat = .pi / 6
+        static let cornerRadius: CGFloat = 8
+        static let textFontSize: CGFloat = 18
+    }
+
     func absoluteStart(canvasSize: CGSize) -> CGPoint {
         CGPoint(
             x: normalizedStart.x * canvasSize.width,
