@@ -10,6 +10,13 @@ final class ScreenshotExportService {
 
     private let logger = Logger(subsystem: "hera.Hermes", category: "Export")
 
+    enum SaveResult: Equatable {
+        case success
+        case encodeFailed
+        case writeFailed
+        case userCancelled
+    }
+
     private init() {}
 
     private let exportPadding: CGFloat = 8
@@ -219,10 +226,10 @@ final class ScreenshotExportService {
 
     // MARK: - File Save
 
-    func saveImage(_ image: NSImage, fileName: String, completion: @escaping (Bool) -> Void) {
+    func saveImage(_ image: NSImage, fileName: String, completion: @escaping (SaveResult) -> Void) {
         guard let data = pngData(for: image) else {
             logger.error("保存失败: PNG编码失败")
-            completion(false)
+            completion(.encodeFailed)
             return
         }
 
@@ -241,7 +248,7 @@ final class ScreenshotExportService {
                 let fileURL = uniqueDestinationURL(for: url.appendingPathComponent(fileName))
                 if (try? data.write(to: fileURL, options: .atomic)) != nil {
                     logger.notice("保存成功: \(fileURL.lastPathComponent, privacy: .public)")
-                    completion(true)
+                    completion(.success)
                     return
                 }
                 logger.warning("写入 bookmark 目录失败, 尝试 fallback")
@@ -255,7 +262,7 @@ final class ScreenshotExportService {
             let fileURL = uniqueDestinationURL(for: baseURL.appendingPathComponent(fileName))
             if (try? data.write(to: fileURL, options: .atomic)) != nil {
                 logger.notice("保存成功: \(fileURL.lastPathComponent, privacy: .public)")
-                completion(true)
+                completion(.success)
                 return
             }
             logger.warning("写入 defaultSavePath 失败: \(defaultSavePath, privacy: .public)")
@@ -274,14 +281,14 @@ final class ScreenshotExportService {
                 do {
                     try data.write(to: url, options: .atomic)
                     self?.logger.notice("用户选择保存: \(url.lastPathComponent, privacy: .public)")
-                    completion(true)
+                    completion(.success)
                 } catch {
                     self?.logger.error("NSSavePanel 写入失败: \(error.localizedDescription, privacy: .public)")
-                    completion(false)
+                    completion(.writeFailed)
                 }
             } else {
                 self?.logger.notice("用户取消保存")
-                completion(false)
+                completion(.userCancelled)
             }
         }
     }

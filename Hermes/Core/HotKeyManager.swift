@@ -11,18 +11,20 @@ class HotKeyManager {
     private var currentId: UInt32 = 1
     private let logger = Logger(subsystem: "hera.Hermes", category: "HotKey")
 
-    // Make init public if needed, or keep private for singleton
     private init() {
         installEventHandler()
     }
 
     func register(key: String, shortcut: Shortcut, handler: @escaping () -> Void) {
-        // Unregister existing if any
         unregister(key: key)
 
         let id = currentId
         currentId += 1
         ids[key] = id
+
+        // 先保存 handler，与 Carbon 注册状态独立。这样 updateHotKey（设置页修改快捷键）
+        // 在 Carbon 注册失败时也能通过已保存的 handler 重试。
+        handlers[key] = handler
 
         var hotKeyRef: EventHotKeyRef?
         let modifierFlags = carbonFlags(from: shortcut.nsModifiers)
@@ -37,44 +39,45 @@ class HotKeyManager {
 
         if err == noErr, let ref = hotKeyRef {
             hotKeyRefs[key] = ref
-            handlers[key] = handler
         } else {
-            logger.warning("快捷键注册失败 [\(key, privacy: .public)]: OSStatus=\(err)")
+            logger.warning("快捷键注册失败 [\(key, privacy: .public)]: OSStatus=\(err)（handler 已保留，设置页可重试）")
         }
     }
-    
+
     func unregister(key: String) {
         if let ref = hotKeyRefs[key] {
             UnregisterEventHotKey(ref)
-            hotKeyRefs.removeValue(forKey: key)
-            handlers.removeValue(forKey: key)
-            ids.removeValue(forKey: key)
         }
+        hotKeyRefs.removeValue(forKey: key)
+        handlers.removeValue(forKey: key)
+        ids.removeValue(forKey: key)
     }
-    
+
     func updateHotKey(id: String, shortcut: Shortcut?) {
         guard let shortcut = shortcut else {
             unregister(key: id)
             return
         }
-        
-        if let handler = handlers[id] {
-            register(key: id, shortcut: shortcut, handler: handler)
+
+        guard let handler = handlers[id] else {
+            logger.warning("updateHotKey 找不到 handler: \(id, privacy: .public)")
+            return
         }
+        register(key: id, shortcut: shortcut, handler: handler)
     }
-    
+
     // For initial registration using KeyCode/Modifiers
     func register(id: String, key: KeyCode, modifiers: NSEvent.ModifierFlags, handler: @escaping () -> Void) {
         let shortcut = Shortcut(key: key, modifiers: modifiers)
         register(key: id, shortcut: shortcut, handler: handler)
     }
-    
+
     private func installEventHandler() {
         var eventSpec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
                                       eventKind: UInt32(kEventHotKeyPressed))
-        
+
         InstallEventHandler(GetApplicationEventTarget(), { (_: EventHandlerCallRef?, event: EventRef?, _: UnsafeMutableRawPointer?) -> OSStatus in
-            
+
             var hotKeyID = EventHotKeyID()
             let err = GetEventParameter(event,
                                         EventParamName(kEventParamDirectObject),
@@ -83,7 +86,7 @@ class HotKeyManager {
                                         MemoryLayout<EventHotKeyID>.size,
                                         nil,
                                         &hotKeyID)
-            
+
             if err == noErr {
                 // Find key string by validation ID
                 if let (key, _) = HotKeyManager.shared.ids.first(where: { $0.value == hotKeyID.id }),
@@ -91,7 +94,7 @@ class HotKeyManager {
                     handler()
                 }
             }
-            
+
             return noErr
         }, 1, &eventSpec, nil, nil)
     }
@@ -172,7 +175,4 @@ enum KeyCode: Int, Codable {
     case keypad7 = 0x59
     case keypad8 = 0x5B
     case keypad9 = 0x5C
-    
-    // Fallback for unknown keys (optional, but good for robustness when decoding)
-    // case unknown = -1
 }

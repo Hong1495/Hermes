@@ -19,7 +19,8 @@ final class CaptureCoordinator {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             ScreenshotService.shared.capture(mode: mode) { image in
                 guard let image = image else {
-                    self?.logger.error("截图失败: capture returned nil")
+                    // nil = 用户按 Esc 取消截图，非错误
+                    self?.logger.debug("截图取消（用户按 Esc）")
                     return
                 }
 
@@ -39,14 +40,13 @@ final class CaptureCoordinator {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             ScreenshotService.shared.capture(mode: .area) { image in
                 guard let image = image else {
-                    self.logger.error("OCR截图失败: capture returned nil")
-                    NSSound(named: "Basso")?.play()
+                    // nil = 用户按 Esc 取消，静默返回
                     return
                 }
                 DispatchQueue.main.async {
                     OCRService.shared.recognizeText(from: image) { result in
                         guard let text = result?.text, !text.isEmpty else {
-                            self.logger.warning("OCR未识别到文字")
+                            self.logger.debug("OCR未识别到文字")
                             NSSound(named: "Basso")?.play()
                             return
                         }

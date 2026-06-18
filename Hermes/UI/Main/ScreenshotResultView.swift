@@ -230,8 +230,10 @@ struct ScreenshotResultView: View {
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: ".")
 
-        exportService.saveImage(image, fileName: fileName) { _ in
-            closeWindow()
+        exportService.saveImage(image, fileName: fileName) { result in
+            if result == .success {
+                closeWindow()
+            }
         }
     }
 
