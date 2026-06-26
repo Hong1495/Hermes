@@ -43,6 +43,14 @@ final class CaptureCoordinator {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             ScreenshotService.shared.capture(mode: .area) { result in
                 guard case .success(let image) = result else {
+                    switch result {
+                    case .cancelled:
+                        self.logger.debug("OCR截图取消")
+                    case .failed(let reason):
+                        self.logger.error("OCR截图失败: \(reason, privacy: .public)")
+                    case .success:
+                        break
+                    }
                     return
                 }
                 DispatchQueue.main.async {

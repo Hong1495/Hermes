@@ -9,6 +9,7 @@ final class ScreenshotExportService {
     static let shared = ScreenshotExportService()
 
     private let logger = Logger(subsystem: "hera.Hermes", category: "Export")
+    private var clipboardDataProvider: ClipboardImageDataProvider?
 
     enum SaveResult: Equatable {
         case success
@@ -306,10 +307,15 @@ final class ScreenshotExportService {
     // MARK: - Clipboard
 
     func copyToClipboard(_ image: NSImage) {
-        guard let data = pngData(for: image) else { return }
         let pasteboard = NSPasteboard.general
+        let item = NSPasteboardItem()
+        let provider = ClipboardImageDataProvider(image: image)
+
+        item.setDataProvider(provider, forTypes: [.png, .tiff])
+        clipboardDataProvider = provider
+
         pasteboard.clearContents()
-        pasteboard.setData(data, forType: .png)
+        pasteboard.writeObjects([item])
     }
 
     // MARK: - File Save
@@ -398,6 +404,29 @@ final class ScreenshotExportService {
         }
 
         return url
+    }
+}
+
+private final class ClipboardImageDataProvider: NSObject, NSPasteboardItemDataProvider {
+    private let image: NSImage
+
+    init(image: NSImage) {
+        self.image = image
+    }
+
+    func pasteboard(_ pasteboard: NSPasteboard?, item: NSPasteboardItem, provideDataForType type: NSPasteboard.PasteboardType) {
+        switch type {
+        case .png:
+            if let data = ScreenshotExportService.shared.pngData(for: image) {
+                item.setData(data, forType: .png)
+            }
+        case .tiff:
+            if let data = image.tiffRepresentation {
+                item.setData(data, forType: .tiff)
+            }
+        default:
+            break
+        }
     }
 }
 
