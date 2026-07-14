@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import Translation
 @testable import Hermes
 
 // MARK: - TranslationViewModel: 真实行为测试
@@ -108,5 +109,11 @@ import Testing
         #expect(result.suggestedTargetCode == nil)
         #expect(result.source.languageCode?.identifier == "zh")
         #expect(result.target.languageCode?.identifier == "en")
+    }
+
+    @Test func supportedLanguagePairCanPrepareTranslation() {
+        #expect(TranslationViewModel.canPrepareTranslation(with: .installed))
+        #expect(TranslationViewModel.canPrepareTranslation(with: .supported))
+        #expect(!TranslationViewModel.canPrepareTranslation(with: .unsupported))
     }
 }

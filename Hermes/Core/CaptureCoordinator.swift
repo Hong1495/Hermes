@@ -6,6 +6,8 @@ final class CaptureCoordinator {
     weak var windowController: FloatingWindowController?
     private let appState: AppState
     private let logger = Logger(subsystem: "hera.Hermes", category: "Capture")
+    private let capturePresentationDelay: TimeInterval = 0.15
+    private let ocrPresentationDelay: TimeInterval = 0.10
 
     init(appState: AppState) {
         self.appState = appState
@@ -17,7 +19,7 @@ final class CaptureCoordinator {
         appState.ocrResultText = nil
         windowController?.closeWindow()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + capturePresentationDelay) { [weak self] in
             ScreenshotService.shared.capture(mode: mode) { result in
                 DispatchQueue.main.async {
                     switch result {
@@ -40,7 +42,7 @@ final class CaptureCoordinator {
         appState.ocrResultText = nil
         windowController?.closeWindow()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + ocrPresentationDelay) {
             ScreenshotService.shared.capture(mode: .area) { result in
                 guard case .success(let image) = result else {
                     switch result {

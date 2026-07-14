@@ -24,10 +24,26 @@ final class StatusMenuController {
         }
 
         let menu = NSMenu()
+
+        let captureItem = NSMenuItem(title: "选区截图", action: #selector(AppDelegate.captureArea), keyEquivalent: "x")
+        captureItem.keyEquivalentModifierMask = [.command, .shift]
+        captureItem.target = target
+        menu.addItem(captureItem)
+
+        let ocrItem = NSMenuItem(title: "OCR 取词", action: #selector(AppDelegate.captureOCR), keyEquivalent: "o")
+        ocrItem.keyEquivalentModifierMask = [.command, .shift]
+        ocrItem.target = target
+        menu.addItem(ocrItem)
+
+        let translationItem = NSMenuItem(title: "翻译", action: #selector(AppDelegate.showTranslation), keyEquivalent: "t")
+        translationItem.keyEquivalentModifierMask = [.command, .shift]
+        translationItem.target = target
+        menu.addItem(translationItem)
+
+        menu.addItem(NSMenuItem.separator())
         let settingsItem = NSMenuItem(title: "设置...", action: #selector(AppDelegate.showSettings), keyEquivalent: ",")
         settingsItem.target = target
         menu.addItem(settingsItem)
-        menu.addItem(NSMenuItem.separator())
         let quitItem = NSMenuItem(title: "退出", action: #selector(AppDelegate.quitApp), keyEquivalent: "q")
         quitItem.target = target
         menu.addItem(quitItem)

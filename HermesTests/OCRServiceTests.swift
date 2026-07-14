@@ -1,4 +1,4 @@
-import Foundation
+import Cocoa
 import Testing
 @testable import Hermes
 
@@ -26,5 +26,40 @@ import Testing
         let codes = "".split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
         let nonEmpty = codes.isEmpty ? AppSettings.Default.ocrFallbackLanguages : codes
         #expect(nonEmpty == ["zh-Hans", "en-US"])
+    }
+
+    @Test func recognizesClearEnglishText() async {
+        let defaults = UserDefaults.standard
+        let previousLanguages = defaults.object(forKey: AppSettings.Key.ocrLanguages)
+        defaults.set("en-US", forKey: AppSettings.Key.ocrLanguages)
+        defer {
+            if let previousLanguages {
+                defaults.set(previousLanguages, forKey: AppSettings.Key.ocrLanguages)
+            } else {
+                defaults.removeObject(forKey: AppSettings.Key.ocrLanguages)
+            }
+        }
+
+        let image = NSImage(size: NSSize(width: 900, height: 220), flipped: false) { rect in
+            NSColor.white.setFill()
+            rect.fill()
+            NSAttributedString(
+                string: "HERMES OCR 123",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: 72, weight: .bold),
+                    .foregroundColor: NSColor.black
+                ]
+            ).draw(at: NSPoint(x: 50, y: 70))
+            return true
+        }
+
+        let result = await withCheckedContinuation { continuation in
+            OCRService.shared.recognizeText(from: image) { result in
+                continuation.resume(returning: result)
+            }
+        }
+
+        #expect(result?.text.localizedCaseInsensitiveContains("HERMES") == true)
+        #expect(result?.text.contains("123") == true)
     }
 }

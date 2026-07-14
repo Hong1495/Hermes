@@ -31,7 +31,7 @@ class OCRService {
         return codes.isEmpty ? ["zh-Hans", "en-US"] : codes
     }
 
-    private func effectiveLanguages(for request: VNRecognizeTextRequest = VNRecognizeTextRequest()) -> [String] {
+    private func effectiveLanguages(for request: VNRecognizeTextRequest) -> [String] {
         let configured = configuredLanguages
 
         let supported: Set<String>
@@ -85,23 +85,15 @@ class OCRService {
 
     private func recognitionVariants(from image: CGImage) -> [ImageVariant] {
         var variants = [ImageVariant(name: "original", image: image)]
-
-        let width = image.width
-        let height = image.height
-        let longestSide = max(width, height)
-        let shortestSide = min(width, height)
+        let longestSide = max(image.width, image.height)
+        let shortestSide = min(image.width, image.height)
 
         if shortestSide < 900 || longestSide < 1600 {
             let desiredScale: CGFloat = shortestSide < 450 ? 3 : 2
             let maxScale = CGFloat(4096) / CGFloat(longestSide)
             let scale = min(desiredScale, maxScale)
-            guard scale > 1.15 else {
-                if let enhanced = enhancedImage(from: image) {
-                    variants.append(ImageVariant(name: "enhanced", image: enhanced))
-                }
-                return variants
-            }
-            if let scaled = scaledImage(image, by: scale) {
+
+            if scale > 1.15, let scaled = scaledImage(image, by: scale) {
                 variants.append(ImageVariant(name: String(format: "scaled-%.1fx", scale), image: scaled))
                 if let enhancedScaled = enhancedImage(from: scaled) {
                     variants.append(ImageVariant(name: String(format: "scaled-%.1fx-enhanced", scale), image: enhancedScaled))
@@ -147,7 +139,6 @@ class OCRService {
         if let bestRevision = VNRecognizeTextRequest.supportedRevisions.max() {
             request.revision = bestRevision
         }
-
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
         request.recognitionLanguages = effectiveLanguages(for: request)

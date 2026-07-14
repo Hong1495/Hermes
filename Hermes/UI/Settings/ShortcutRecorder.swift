@@ -7,35 +7,58 @@ struct ShortcutRecorder: View {
     
     @State private var isRecording = false
     @State private var currentShortcut: Shortcut?
+    @State private var recordedShortcut: Shortcut?
+    @State private var validationMessage: String?
     
     var body: some View {
-        Button(action: {
-            isRecording = true
-        }) {
-            HStack {
-                if isRecording {
-                    Text("请输入快捷键...")
-                        .foregroundColor(.gray)
-                } else {
-                    Text(shortcutString(for: currentShortcut))
+        VStack(alignment: .trailing, spacing: 3) {
+            Button(action: {
+                validationMessage = nil
+                recordedShortcut = nil
+                isRecording = true
+            }) {
+                HStack {
+                    if isRecording {
+                        Text("请输入快捷键...")
+                            .foregroundColor(.gray)
+                    } else {
+                        Text(shortcutString(for: currentShortcut))
+                    }
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.1)))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.2), lineWidth: 1))
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.1)))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.2), lineWidth: 1))
+            .buttonStyle(.plain)
+
+            if let validationMessage {
+                Text(validationMessage)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.red)
+            }
         }
-        .buttonStyle(.plain)
         .overlay(
-            ShortcutMonitor(isRecording: $isRecording, shortcut: $currentShortcut)
+            ShortcutMonitor(isRecording: $isRecording, shortcut: $recordedShortcut)
                 .frame(width: 0, height: 0)
         )
         .onAppear {
             loadShortcut()
         }
-        .onChange(of: currentShortcut) { _, newValue in
+        .onChange(of: recordedShortcut) { _, newValue in
+            guard let newValue else { return }
+            guard newValue.hasGlobalModifier else {
+                validationMessage = "请至少使用 ⌘、⌥ 或 ⌃"
+                return
+            }
+            guard !newValue.isSystemScreenshotShortcut else {
+                validationMessage = "该组合是 macOS 系统截图快捷键"
+                return
+            }
+
+            validationMessage = nil
+            currentShortcut = newValue
             saveShortcut(newValue)
-            // HotKeyManager update triggers here or via observation elsewhere
             HotKeyManager.shared.updateHotKey(id: key, shortcut: newValue)
         }
     }
@@ -54,14 +77,68 @@ struct ShortcutRecorder: View {
     }
     
     private func keyString(for key: KeyCode) -> String {
-        // Simple mapping for common keys, incomplete but sufficient for demo
         switch key {
-        case .x: return "X"
-        case .t: return "T"
         case .a: return "A"
         case .b: return "B"
-            // ... Add more mappings or use Carbon functions to get key string
-        default: return "\(key)"
+        case .c: return "C"
+        case .d: return "D"
+        case .e: return "E"
+        case .f: return "F"
+        case .g: return "G"
+        case .h: return "H"
+        case .i: return "I"
+        case .j: return "J"
+        case .k: return "K"
+        case .l: return "L"
+        case .m: return "M"
+        case .n: return "N"
+        case .o: return "O"
+        case .p: return "P"
+        case .q: return "Q"
+        case .r: return "R"
+        case .s: return "S"
+        case .t: return "T"
+        case .u: return "U"
+        case .v: return "V"
+        case .w: return "W"
+        case .x: return "X"
+        case .y: return "Y"
+        case .z: return "Z"
+        case .zero: return "0"
+        case .one: return "1"
+        case .two: return "2"
+        case .three: return "3"
+        case .four: return "4"
+        case .five: return "5"
+        case .six: return "6"
+        case .seven: return "7"
+        case .eight: return "8"
+        case .nine: return "9"
+        case .equal, .keypadEquals: return "="
+        case .minus, .keypadMinus: return "-"
+        case .leftBracket: return "["
+        case .rightBracket: return "]"
+        case .quote: return "'"
+        case .semicolon: return ";"
+        case .backslash: return "\\"
+        case .comma: return ","
+        case .period, .keypadDecimal: return "."
+        case .slash, .keypadDivide: return "/"
+        case .grave: return "`"
+        case .keypadMultiply: return "*"
+        case .keypadPlus: return "+"
+        case .keypadClear: return "Clear"
+        case .keypadEnter: return "Enter"
+        case .keypad0: return "Num 0"
+        case .keypad1: return "Num 1"
+        case .keypad2: return "Num 2"
+        case .keypad3: return "Num 3"
+        case .keypad4: return "Num 4"
+        case .keypad5: return "Num 5"
+        case .keypad6: return "Num 6"
+        case .keypad7: return "Num 7"
+        case .keypad8: return "Num 8"
+        case .keypad9: return "Num 9"
         }
     }
     

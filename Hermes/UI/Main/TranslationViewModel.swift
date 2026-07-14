@@ -97,15 +97,19 @@ final class TranslationViewModel: ObservableObject {
 
     // MARK: - Translation Trigger
 
+    static func canPrepareTranslation(with status: LanguageAvailability.Status) -> Bool {
+        status != .unsupported
+    }
+
     private func triggerTranslation(for text: String, requestID: UUID) {
         let (source, target, suggestedTargetCode) = resolveLanguages(for: text)
 
         Task { [weak self] in
             let status = await LanguageAvailability().status(from: source, to: target)
             guard let self, self.translationRequestID == requestID else { return }
-            guard status == .installed else {
+            guard Self.canPrepareTranslation(with: status) else {
                 appState.translatedText = ""
-                appState.translationError = "未安装「\(source.languageCode?.identifier ?? "?") → \(target.languageCode?.identifier ?? "?")」翻译语言包，请在系统设置 → 通用 → 翻译与实时翻译中下载。"
+                appState.translationError = "不支持「\(source.languageCode?.identifier ?? "?") → \(target.languageCode?.identifier ?? "?")」翻译。"
                 appState.isTranslating = false
                 return
             }
@@ -127,7 +131,6 @@ final class TranslationViewModel: ObservableObject {
             DispatchQueue.main.async {
                 self.isApplyingAutomaticTargetSelection = false
             }
-            return
         }
 
         if let existing = translationConfig,
@@ -151,6 +154,9 @@ final class TranslationViewModel: ObservableObject {
         let requestID = translationRequestID
 
         do {
+            try await session.prepareTranslation()
+            guard translationRequestID == requestID else { return }
+
             let result = try await TranslationService.shared.translate(
                 text: trimmed,
                 using: session
@@ -218,9 +224,12 @@ final class TranslationViewModel: ObservableObject {
     }
 
     func onTargetLangChanged() {
-        if !isApplyingAutomaticTargetSelection {
-            targetSelectionWasManual = true
+        if isApplyingAutomaticTargetSelection {
+            persistLanguagePair()
+            return
         }
+
+        targetSelectionWasManual = true
         persistLanguagePair()
         scheduleTranslation(immediate: true)
     }

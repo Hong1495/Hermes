@@ -41,6 +41,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowController?.showWindow()
     }
 
+    @objc func captureArea() {
+        captureCoordinator.capture(mode: .area)
+    }
+
+    @objc func captureOCR() {
+        captureCoordinator.ocrCaptureSilent()
+    }
+
+    @objc func showTranslation() {
+        captureCoordinator.openTranslationWorkspace()
+    }
+
     @objc func showSettings() {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController()

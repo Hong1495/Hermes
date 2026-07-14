@@ -43,11 +43,20 @@ final class ShortcutRegistry {
     }
 
     private func register(key: String, defaultKey: KeyCode, defaultMods: NSEvent.ModifierFlags, handler: @escaping () -> Void) {
+        let defaultShortcut = Shortcut(key: defaultKey, modifiers: defaultMods)
+
         if let data = UserDefaults.standard.data(forKey: key),
            let shortcut = try? JSONDecoder().decode(Shortcut.self, from: data) {
-            HotKeyManager.shared.register(key: key, shortcut: shortcut, handler: handler)
+            if shortcut.isSystemScreenshotShortcut || !shortcut.hasGlobalModifier {
+                if let encoded = try? JSONEncoder().encode(defaultShortcut) {
+                    UserDefaults.standard.set(encoded, forKey: key)
+                }
+                HotKeyManager.shared.register(key: key, shortcut: defaultShortcut, handler: handler)
+            } else {
+                HotKeyManager.shared.register(key: key, shortcut: shortcut, handler: handler)
+            }
         } else {
-            HotKeyManager.shared.register(id: key, key: defaultKey, modifiers: defaultMods, handler: handler)
+            HotKeyManager.shared.register(key: key, shortcut: defaultShortcut, handler: handler)
         }
     }
 }

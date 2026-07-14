@@ -4,7 +4,7 @@ struct ShortcutsSettingsView: View {
     var body: some View {
         Form {
             Section("截图") {
-                ShortcutRow(title: "选区截图", icon: "viewfinder.crop.circle", key: AppSettings.Key.shortcutCapture, defaultShortcut: Shortcut(key: .x, modifiers: [.command, .shift]))
+                ShortcutRow(title: "选区截图", icon: "viewfinder", key: AppSettings.Key.shortcutCapture, defaultShortcut: Shortcut(key: .x, modifiers: [.command, .shift]))
                 ShortcutRow(title: "窗口截图", icon: "macwindow.on.rectangle", key: AppSettings.Key.shortcutWindow, defaultShortcut: Shortcut(key: .w, modifiers: [.command, .shift]))
                 ShortcutRow(title: "全屏截图", icon: "rectangle.inset.filled", key: AppSettings.Key.shortcutScreen, defaultShortcut: Shortcut(key: .s, modifiers: [.command, .shift]))
                 ShortcutRow(title: "OCR 复制文字", icon: "text.viewfinder", key: AppSettings.Key.shortcutOCR, defaultShortcut: Shortcut(key: .o, modifiers: [.command, .shift]))
