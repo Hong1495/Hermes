@@ -12,7 +12,6 @@ final class TranslationViewModel: ObservableObject {
     @Published var translationConfig: TranslationSession.Configuration?
     private var pendingTranslationTask: Task<Void, Never>?
     private(set) var translationRequestID = UUID()
-    private(set) var targetSelectionWasManual = false
     private var isApplyingAutomaticTargetSelection = false
 
     let languages: [(label: String, code: String)] = [
@@ -27,13 +26,13 @@ final class TranslationViewModel: ObservableObject {
         self.appState = appState
         sourceLang = UserDefaults.standard.string(forKey: AppSettings.Key.lastSourceLang) ?? "auto"
         targetLang = UserDefaults.standard.string(forKey: AppSettings.Key.lastTargetLang) ?? "zh-CN"
-        if sourceLang != "auto" {
-            targetSelectionWasManual = true
+        if sourceLang == "auto" {
+            targetLang = "zh-CN"
         }
     }
 
     var autoTranslateOnPaste: Bool {
-        UserDefaults.standard.bool(forKey: AppSettings.Key.autoTranslateOnPaste)
+        AppSettings.autoTranslateOnPaste()
     }
 
     func langOptions(includeAuto: Bool) -> [(label: String, code: String)] {
@@ -55,11 +54,9 @@ final class TranslationViewModel: ObservableObject {
             let detected = service.detectLanguage(for: text)
 
             if service.isChinese(detected) {
-                let automaticTarget = targetSelectionWasManual ? targetLang : "en"
-                return (detected, convertToLanguage(automaticTarget), targetSelectionWasManual ? nil : automaticTarget)
+                return (detected, convertToLanguage("en"), "en")
             } else {
-                let automaticTarget = targetSelectionWasManual ? targetLang : "zh-CN"
-                return (detected, convertToLanguage(automaticTarget), targetSelectionWasManual ? nil : automaticTarget)
+                return (detected, convertToLanguage("zh-CN"), "zh-CN")
             }
         }
         return (convertToLanguage(sourceLang), convertToLanguage(targetLang), nil)
@@ -98,47 +95,54 @@ final class TranslationViewModel: ObservableObject {
     // MARK: - Translation Trigger
 
     static func canPrepareTranslation(with status: LanguageAvailability.Status) -> Bool {
-        status != .unsupported
+        status == .installed
     }
 
     private func triggerTranslation(for text: String, requestID: UUID) {
         let (source, target, suggestedTargetCode) = resolveLanguages(for: text)
+        if let suggestedTargetCode {
+            applyAutomaticTargetSelection(suggestedTargetCode)
+        }
 
         Task { [weak self] in
             let status = await LanguageAvailability().status(from: source, to: target)
             guard let self, self.translationRequestID == requestID else { return }
             guard Self.canPrepareTranslation(with: status) else {
+                translationConfig = nil
                 appState.translatedText = ""
-                appState.translationError = "不支持「\(source.languageCode?.identifier ?? "?") → \(target.languageCode?.identifier ?? "?")」翻译。"
+                appState.translationError = status == .supported
+                    ? "尚未安装「\(source.languageCode?.identifier ?? "?") → \(target.languageCode?.identifier ?? "?")」语言包，请先在系统设置中安装。"
+                    : "不支持「\(source.languageCode?.identifier ?? "?") → \(target.languageCode?.identifier ?? "?")」翻译。"
                 appState.isTranslating = false
                 return
             }
 
             await MainActor.run { [weak self] in
                 guard let self, self.translationRequestID == requestID else { return }
-                self.applyTranslationConfig(source: source, target: target, suggestedTargetCode: suggestedTargetCode)
+                self.applyTranslationConfig(source: source, target: target)
             }
         }
     }
 
-    private func applyTranslationConfig(source: Locale.Language, target: Locale.Language, suggestedTargetCode: String?) {
-        if let suggestedTargetCode,
-           suggestedTargetCode != targetLang {
-            isApplyingAutomaticTargetSelection = true
-            withAnimation(.easeInOut(duration: 0.2)) {
-                targetLang = suggestedTargetCode
-            }
-            DispatchQueue.main.async {
-                self.isApplyingAutomaticTargetSelection = false
-            }
-        }
-
+    private func applyTranslationConfig(source: Locale.Language, target: Locale.Language) {
         if let existing = translationConfig,
            existing.source == source,
            existing.target == target {
             translationConfig?.invalidate()
         } else {
             translationConfig = .init(source: source, target: target)
+        }
+    }
+
+    private func applyAutomaticTargetSelection(_ targetCode: String) {
+        guard targetCode != targetLang else { return }
+
+        isApplyingAutomaticTargetSelection = true
+        withAnimation(.easeInOut(duration: 0.2)) {
+            targetLang = targetCode
+        }
+        DispatchQueue.main.async {
+            self.isApplyingAutomaticTargetSelection = false
         }
     }
 
@@ -183,7 +187,6 @@ final class TranslationViewModel: ObservableObject {
         let originalSource = sourceLang
         sourceLang = targetLang
         targetLang = originalSource
-        targetSelectionWasManual = true
         persistLanguagePair()
     }
 
@@ -213,12 +216,10 @@ final class TranslationViewModel: ObservableObject {
         translationConfig = nil
         sourceLang = "auto"
         targetLang = "zh-CN"
-        targetSelectionWasManual = false
         persistLanguagePair()
     }
 
     func onSourceLangChanged() {
-        targetSelectionWasManual = false
         persistLanguagePair()
         scheduleTranslation(immediate: true)
     }
@@ -229,7 +230,6 @@ final class TranslationViewModel: ObservableObject {
             return
         }
 
-        targetSelectionWasManual = true
         persistLanguagePair()
         scheduleTranslation(immediate: true)
     }

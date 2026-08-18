@@ -144,6 +144,10 @@ struct AnnotationCanvas: View {
                     }
 
                 if showingTextInput {
+                    let inputWidth = max(120, CGFloat(max(textInputValue.count, 4)) * 11 + 20) + 20
+                    let inputHeight: CGFloat = 42
+                    let inputX = min(max(0, textInputPosition.x), max(0, geometry.size.width - inputWidth))
+                    let inputY = min(max(0, textInputPosition.y), max(0, geometry.size.height - inputHeight))
                     TextField("输入标注", text: $textInputValue)
                         .textFieldStyle(.plain)
                         .font(.system(size: 18, weight: .medium))
@@ -157,7 +161,7 @@ struct AnnotationCanvas: View {
                                 .stroke(Theme.Colors.glassBorder, lineWidth: 1)
                         )
                         .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.small, style: .continuous))
-                        .offset(x: textInputPosition.x, y: textInputPosition.y)
+                        .offset(x: inputX, y: inputY)
                         .focused($isTextFieldFocused)
                         .task {
                             isTextFieldFocused = true

@@ -29,21 +29,7 @@ import Testing
         #expect(vm.targetLang == "zh-CN")
     }
 
-    @Test func targetSelectionWasManualIsFalseByDefault() {
-        let vm = makeViewModel()
-        #expect(vm.targetSelectionWasManual == false)
-    }
-
     // MARK: - Language Resolution Strategy
-
-    @Test func onSourceLangChangedResetsManualTarget() {
-        let vm = makeViewModel()
-        vm.onTargetLangChanged()
-        #expect(vm.targetSelectionWasManual == true)
-
-        vm.onSourceLangChanged()
-        #expect(vm.targetSelectionWasManual == false)
-    }
 
     @Test func swapLanguagesExchangesCorrectly() {
         let vm = makeViewModel()
@@ -52,7 +38,6 @@ import Testing
         vm.swapLanguages()
         #expect(vm.sourceLang == "en")
         #expect(vm.targetLang == "zh-CN")
-        #expect(vm.targetSelectionWasManual == true)
     }
 
     @Test func swapLanguagesNoopInAutoMode() {
@@ -89,12 +74,11 @@ import Testing
         #expect(vm.translationConfig == nil)
     }
 
-    @Test func clearResetsManualFlag() {
+    @Test func clearResetsLanguageSelection() {
         let vm = makeViewModel()
-        vm.onTargetLangChanged()
-        #expect(vm.targetSelectionWasManual == true)
+        vm.targetLang = "ja"
         vm.clearTranslation()
-        #expect(vm.targetSelectionWasManual == false)
+        #expect(vm.targetLang == "zh-CN")
     }
 
     // MARK: - Schedule / Debounce

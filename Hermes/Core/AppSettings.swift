@@ -42,6 +42,13 @@ enum AppSettings {
         return Default.showOCRPreview
     }
 
+    static func autoTranslateOnPaste(in defaults: UserDefaults = .standard) -> Bool {
+        if let storedValue = defaults.object(forKey: Key.autoTranslateOnPaste) as? Bool {
+            return storedValue
+        }
+        return Default.autoTranslateOnPaste
+    }
+
     // MARK: - Appearance
 
     static func updateAppearance(_ theme: String) {

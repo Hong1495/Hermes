@@ -47,7 +47,7 @@ final class ShortcutRegistry {
 
         if let data = UserDefaults.standard.data(forKey: key),
            let shortcut = try? JSONDecoder().decode(Shortcut.self, from: data) {
-            if shortcut.isSystemScreenshotShortcut || !shortcut.hasGlobalModifier {
+            if !shortcut.hasGlobalModifier {
                 if let encoded = try? JSONEncoder().encode(defaultShortcut) {
                     UserDefaults.standard.set(encoded, forKey: key)
                 }

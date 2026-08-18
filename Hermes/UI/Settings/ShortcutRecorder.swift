@@ -51,15 +51,13 @@ struct ShortcutRecorder: View {
                 validationMessage = "请至少使用 ⌘、⌥ 或 ⌃"
                 return
             }
-            guard !newValue.isSystemScreenshotShortcut else {
-                validationMessage = "该组合是 macOS 系统截图快捷键"
+            guard HotKeyManager.shared.updateHotKey(id: key, shortcut: newValue) else {
+                validationMessage = "快捷键注册失败，原快捷键仍然保留"
                 return
             }
-
             validationMessage = nil
             currentShortcut = newValue
             saveShortcut(newValue)
-            HotKeyManager.shared.updateHotKey(id: key, shortcut: newValue)
         }
     }
     

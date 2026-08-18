@@ -8,23 +8,31 @@ class HotKeyManager {
     private var hotKeyRefs: [String: EventHotKeyRef] = [:]
     private var handlers: [String: () -> Void] = [:]
     private var ids: [String: UInt32] = [:]
+    private var shortcuts: [String: Shortcut] = [:]
     private var currentId: UInt32 = 1
+    private var eventHandlerInstalled = false
     private let logger = Logger(subsystem: "hera.Hermes", category: "HotKey")
 
     private init() {
         installEventHandler()
     }
 
-    func register(key: String, shortcut: Shortcut, handler: @escaping () -> Void) {
-        unregister(key: key)
+    @discardableResult
+    func register(key: String, shortcut: Shortcut, handler: @escaping () -> Void) -> Bool {
+        if shortcuts[key] == shortcut, hotKeyRefs[key] != nil {
+            handlers[key] = handler
+            return true
+        }
 
+        guard eventHandlerInstalled else {
+            handlers[key] = handler
+            logger.error("快捷键事件处理器不可用，无法注册 [\(key, privacy: .public)]")
+            return false
+        }
+
+        // 先尝试注册新快捷键。注册失败时保留旧注册，避免设置页把可用快捷键换成失效状态。
         let id = currentId
         currentId += 1
-        ids[key] = id
-
-        // 先保存 handler，与 Carbon 注册状态独立。这样 updateHotKey（设置页修改快捷键）
-        // 在 Carbon 注册失败时也能通过已保存的 handler 重试。
-        handlers[key] = handler
 
         var hotKeyRef: EventHotKeyRef?
         let modifierFlags = carbonFlags(from: shortcut.nsModifiers)
@@ -38,9 +46,18 @@ class HotKeyManager {
                                       &hotKeyRef)
 
         if err == noErr, let ref = hotKeyRef {
+            if let oldRef = hotKeyRefs[key] {
+                UnregisterEventHotKey(oldRef)
+            }
             hotKeyRefs[key] = ref
+            ids[key] = id
+            handlers[key] = handler
+            shortcuts[key] = shortcut
+            return true
         } else {
-            logger.warning("快捷键注册失败 [\(key, privacy: .public)]: OSStatus=\(err)（handler 已保留，设置页可重试）")
+            logger.warning("快捷键注册失败 [\(key, privacy: .public)]: OSStatus=\(err)，保留旧快捷键")
+            handlers[key] = handler
+            return false
         }
     }
 
@@ -51,19 +68,21 @@ class HotKeyManager {
         hotKeyRefs.removeValue(forKey: key)
         handlers.removeValue(forKey: key)
         ids.removeValue(forKey: key)
+        shortcuts.removeValue(forKey: key)
     }
 
-    func updateHotKey(id: String, shortcut: Shortcut?) {
+    @discardableResult
+    func updateHotKey(id: String, shortcut: Shortcut?) -> Bool {
         guard let shortcut = shortcut else {
             unregister(key: id)
-            return
+            return true
         }
 
         guard let handler = handlers[id] else {
             logger.warning("updateHotKey 找不到 handler: \(id, privacy: .public)")
-            return
+            return false
         }
-        register(key: id, shortcut: shortcut, handler: handler)
+        return register(key: id, shortcut: shortcut, handler: handler)
     }
 
     // For initial registration using KeyCode/Modifiers
@@ -76,7 +95,7 @@ class HotKeyManager {
         var eventSpec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
                                       eventKind: UInt32(kEventHotKeyPressed))
 
-        InstallEventHandler(GetApplicationEventTarget(), { (_: EventHandlerCallRef?, event: EventRef?, _: UnsafeMutableRawPointer?) -> OSStatus in
+        let err = InstallEventHandler(GetApplicationEventTarget(), { (_: EventHandlerCallRef?, event: EventRef?, _: UnsafeMutableRawPointer?) -> OSStatus in
 
             var hotKeyID = EventHotKeyID()
             let err = GetEventParameter(event,
@@ -88,15 +107,21 @@ class HotKeyManager {
                                         &hotKeyID)
 
             if err == noErr {
-                // Find key string by validation ID
-                if let (key, _) = HotKeyManager.shared.ids.first(where: { $0.value == hotKeyID.id }),
-                   let handler = HotKeyManager.shared.handlers[key] {
-                    handler()
+                // Carbon 回调不保证在主线程；查表和业务调用都切到主线程。
+                DispatchQueue.main.async {
+                    if let (key, _) = HotKeyManager.shared.ids.first(where: { $0.value == hotKeyID.id }),
+                       let handler = HotKeyManager.shared.handlers[key] {
+                        handler()
+                    }
                 }
             }
 
             return noErr
         }, 1, &eventSpec, nil, nil)
+        eventHandlerInstalled = err == noErr
+        if err != noErr {
+            logger.error("安装快捷键事件处理器失败: OSStatus=\(err)")
+        }
     }
 
     private func carbonFlags(from modifiers: NSEvent.ModifierFlags) -> UInt32 {

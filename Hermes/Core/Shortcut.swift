@@ -14,12 +14,6 @@ struct Shortcut: Codable, Equatable {
         self.modifiers = modifiers.rawValue
     }
 
-    var isSystemScreenshotShortcut: Bool {
-        let relevant = nsModifiers.intersection([.command, .option, .control, .shift])
-        guard relevant == [.command, .shift] else { return false }
-        return key == .three || key == .four || key == .five
-    }
-
     var hasGlobalModifier: Bool {
         !nsModifiers.intersection([.command, .option, .control]).isEmpty
     }

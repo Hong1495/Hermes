@@ -17,6 +17,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         windowController = FloatingWindowController(appState: .shared)
         captureCoordinator.windowController = windowController
+        setupApplicationMenu()
 
         statusMenuController.setup(target: self)
 
@@ -27,14 +28,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // 注册全部快捷键
-        shortcutRegistry.registerAll(with: .init(
-            onCaptureArea: { [weak self] in self?.captureCoordinator.capture(mode: .area) },
-            onCaptureWindow: { [weak self] in self?.captureCoordinator.capture(mode: .window) },
-            onCaptureScreen: { [weak self] in self?.captureCoordinator.capture(mode: .screen) },
-            onOCR: { [weak self] in self?.captureCoordinator.ocrCaptureSilent() },
-            onTranslate: { [weak self] in self?.captureCoordinator.openTranslationWorkspace() }
-        ))
+        // 等应用完成首轮 RunLoop 后注册，避免启动阶段首个 Carbon 事件与窗口初始化竞争。
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.shortcutRegistry.registerAll(with: .init(
+                onCaptureArea: { [weak self] in self?.captureCoordinator.capture(mode: .area) },
+                onCaptureWindow: { [weak self] in self?.captureCoordinator.capture(mode: .window) },
+                onCaptureScreen: { [weak self] in self?.captureCoordinator.capture(mode: .screen) },
+                onOCR: { [weak self] in self?.captureCoordinator.ocrCaptureSilent() },
+                onTranslate: { [weak self] in self?.captureCoordinator.openTranslationWorkspace() }
+            ))
+        }
     }
 
     @objc func showApp() {
@@ -43,6 +47,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func captureArea() {
         captureCoordinator.capture(mode: .area)
+    }
+
+    @objc func captureWindow() {
+        captureCoordinator.capture(mode: .window)
+    }
+
+    @objc func captureScreen() {
+        captureCoordinator.capture(mode: .screen)
     }
 
     @objc func captureOCR() {
@@ -63,5 +75,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func quitApp() {
         NSApp.terminate(nil)
+    }
+
+    private func setupApplicationMenu() {
+        let mainMenu = NSMenu()
+        let appMenuItem = NSMenuItem()
+        let appMenu = NSMenu()
+
+        let settingsItem = NSMenuItem(title: "设置...", action: #selector(showSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        appMenu.addItem(settingsItem)
+        appMenu.addItem(.separator())
+
+        let quitItem = NSMenuItem(title: "退出 Hermes", action: #selector(quitApp), keyEquivalent: "q")
+        quitItem.target = self
+        appMenu.addItem(quitItem)
+
+        appMenuItem.submenu = appMenu
+        mainMenu.addItem(appMenuItem)
+        NSApp.mainMenu = mainMenu
     }
 }

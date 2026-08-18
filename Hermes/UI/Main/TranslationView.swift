@@ -98,6 +98,7 @@ struct TranslationView: View {
             .disabled(viewModel.sourceLang == "auto")
 
             languageField(title: "目标语言", selection: $viewModel.targetLang, includeAuto: false)
+                .disabled(viewModel.sourceLang == "auto")
 
             Spacer(minLength: 8)
 

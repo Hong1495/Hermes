@@ -1,11 +1,11 @@
 import Cocoa
 
-class ScreenshotService {
+final class ScreenshotService {
     static let shared = ScreenshotService()
 
-    private init() {}
+    init() {}
 
-    enum CaptureMode {
+    enum CaptureMode: Equatable {
         case area
         case window
         case screen
@@ -17,12 +17,47 @@ class ScreenshotService {
         case failed(String)
     }
 
+    // MARK: - Screen Recording Permission
+
+    /// macOS 会允许交互式选区界面先出现，再在提交选区时拒绝无权限的截图。
+    /// 因此所有截图模式都必须先检查屏幕录制权限，否则用户会看到十字光标却拿不到结果。
+    static func captureRequiresPermission(_ mode: CaptureMode) -> Bool {
+        true
+    }
+
+    /// 预检屏幕录制权限（TCC kTCCServiceScreenCapture）。
+    static func hasScreenCapturePermission() -> Bool {
+        CGPreflightScreenCaptureAccess()
+    }
+
+    /// 请求屏幕录制权限；系统会在首次请求时弹出授权对话框。
+    static func requestScreenCapturePermission() -> Bool {
+        CGRequestScreenCaptureAccess()
+    }
+
+    /// 命令参数集中定义，便于验证每种模式的交互行为。
+    static func arguments(for mode: CaptureMode, outputPath: String) -> [String] {
+        switch mode {
+        case .area:
+            return ["-i", "-x", outputPath]
+        case .window:
+            return ["-i", "-W", "-o", "-x", outputPath]
+        case .screen:
+            return ["-x", outputPath]
+        }
+    }
+
     func capture(mode: CaptureMode, completion: @escaping (CaptureResult) -> Void) {
         switch mode {
         case .window:
             captureWindow(completion: completion)
         case .area, .screen:
-            captureViaScreencapture(mode: mode, completion: completion)
+            captureToFile(
+                arguments: Self.arguments(for: mode, outputPath: "{output}"),
+                outputPathSuffix: "",
+                missingFileResult: .cancelled,
+                completion: completion
+            )
         }
     }
 
@@ -31,141 +66,68 @@ class ScreenshotService {
         capture(mode: .area, completion: completion)
     }
 
-    // MARK: - screencapture path (area / screen)
+    // MARK: - Process execution
 
-    /// 每次调用生成唯一临时路径，避免并发截图时互相覆盖
+    /// 每次调用生成唯一临时路径，避免并发截图时互相覆盖。
     private static func makeTempPath(suffix: String = "") -> String {
         let unique = "\(ProcessInfo.processInfo.processIdentifier)_\(UUID().uuidString)\(suffix).png"
         return NSTemporaryDirectory().appending(unique)
     }
 
-    private func captureViaScreencapture(mode: CaptureMode, completion: @escaping (CaptureResult) -> Void) {
-        let tempPath = Self.makeTempPath()
-        let url = URL(fileURLWithPath: tempPath)
-        try? FileManager.default.removeItem(at: url)
-
-        let task = Process()
-        task.launchPath = "/usr/sbin/screencapture"
-
-        var arguments: [String] = []
-
-        switch mode {
-        case .area:
-            arguments.append("-i")
-        case .screen:
-            break
-        default:
-            break
-        }
-
-        arguments.append("-x")
-        arguments.append(tempPath)
-
-        task.arguments = arguments
-
-        task.terminationHandler = { _ in
-            let result: CaptureResult
-            if FileManager.default.fileExists(atPath: tempPath) {
-                if let image = NSImage(contentsOfFile: tempPath) {
-                    result = .success(image)
-                } else {
-                    result = .failed("截图文件读取失败")
-                }
-                try? FileManager.default.removeItem(at: URL(fileURLWithPath: tempPath))
-            } else {
-                result = .cancelled
+    private func captureWindow(completion: @escaping (CaptureResult) -> Void) {
+        let clickPoint = NSEvent.mouseLocation
+        captureToFile(
+            arguments: Self.arguments(for: .window, outputPath: "{output}"),
+            outputPathSuffix: "_w",
+            missingFileResult: .cancelled
+        ) { [weak self] result in
+            guard case .success = result, let self else {
+                completion(result)
+                return
             }
-            DispatchQueue.main.async {
+
+            // Some windows (for example sharingState=0 windows) are skipped by -W.
+            // Re-capture their full bounds by region when the picker returned a window behind it.
+            if Self.hasBlockedWindowAt(cocoaPoint: clickPoint),
+               let rect = Self.findWindowRectViaRegion(cocoaPoint: clickPoint) {
+                self.captureRegion(rect: rect, completion: completion)
+            } else {
                 completion(result)
             }
-        }
-
-        do {
-            try task.run()
-        } catch {
-            completion(.failed("screencapture 启动失败: \(error.localizedDescription)"))
-        }
-    }
-
-    // MARK: - Window capture
-
-    private func captureWindow(completion: @escaping (CaptureResult) -> Void) {
-        let tempPath = Self.makeTempPath(suffix: "_w")
-        let url = URL(fileURLWithPath: tempPath)
-        try? FileManager.default.removeItem(at: url)
-
-        let task = Process()
-        task.launchPath = "/usr/sbin/screencapture"
-
-        // Try standard window capture first. Works for all normal windows.
-        task.arguments = ["-i", "-W", "-o", "-x", tempPath]
-
-        task.terminationHandler = { [weak self] _ in
-            let image: NSImage?
-            if FileManager.default.fileExists(atPath: tempPath) {
-                image = NSImage(contentsOfFile: tempPath)
-                try? FileManager.default.removeItem(at: URL(fileURLWithPath: tempPath))
-            } else {
-                image = nil
-            }
-
-            // If image exists, check whether a sharingState=0 window (WeChat)
-            // was on top at mouse click position — screencapture -i -W would have
-            // skipped it and captured the window behind instead.
-            if let image, image.isValid, let self = self {
-                let clickPoint = NSEvent.mouseLocation
-                if Self.hasBlockedWindowAt(cocoaPoint: clickPoint),
-                   let rect = Self.findWindowRectViaRegion(cocoaPoint: clickPoint) {
-                    // Re-capture using region mode (pixel-level, bypasses window sharing)
-                    self.captureRegion(rect: rect, completion: completion)
-                    return
-                }
-                DispatchQueue.main.async {
-                    completion(.success(image))
-                }
-            } else if image != nil {
-                DispatchQueue.main.async {
-                    completion(.failed("窗口截图文件读取失败"))
-                }
-            } else {
-                DispatchQueue.main.async {
-                    completion(.cancelled)
-                }
-            }
-        }
-
-        do {
-            try task.run()
-        } catch {
-            completion(.failed("screencapture 启动失败: \(error.localizedDescription)"))
         }
     }
 
     private func captureRegion(rect: NSRect, completion: @escaping (CaptureResult) -> Void) {
-        let tempPath = Self.makeTempPath(suffix: "_r")
-        let url = URL(fileURLWithPath: tempPath)
-        try? FileManager.default.removeItem(at: url)
+        let rectString = String(format: "%d,%d,%d,%d",
+                                Int(rect.origin.x), Int(rect.origin.y),
+                                Int(rect.width), Int(rect.height))
+        captureToFile(
+            arguments: ["-R", rectString, "-x", "{output}"],
+            outputPathSuffix: "_r",
+            missingFileResult: .failed("区域截图未生成文件"),
+            completion: completion
+        )
+    }
+
+    private func captureToFile(
+        arguments argumentTemplate: [String],
+        outputPathSuffix: String,
+        missingFileResult: CaptureResult,
+        completion: @escaping (CaptureResult) -> Void
+    ) {
+        let outputPath = Self.makeTempPath(suffix: outputPathSuffix)
+        let outputURL = URL(fileURLWithPath: outputPath)
+        try? FileManager.default.removeItem(at: outputURL)
 
         let task = Process()
-        task.launchPath = "/usr/sbin/screencapture"
-
-        let rectStr = String(format: "%d,%d,%d,%d",
-                             Int(rect.origin.x), Int(rect.origin.y),
-                             Int(rect.width), Int(rect.height))
-        task.arguments = ["-R", rectStr, "-x", tempPath]
-
-        task.terminationHandler = { _ in
-            let result: CaptureResult
-            if FileManager.default.fileExists(atPath: tempPath) {
-                if let image = NSImage(contentsOfFile: tempPath) {
-                    result = .success(image)
-                } else {
-                    result = .failed("区域截图文件读取失败")
-                }
-                try? FileManager.default.removeItem(at: URL(fileURLWithPath: tempPath))
-            } else {
-                result = .failed("区域截图未生成文件")
-            }
+        task.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        task.arguments = argumentTemplate.map { $0 == "{output}" ? outputPath : $0 }
+        task.terminationHandler = { task in
+            let result = Self.result(
+                at: outputURL,
+                exitCode: task.terminationStatus,
+                missingFileResult: missingFileResult
+            )
             DispatchQueue.main.async {
                 completion(result)
             }
@@ -174,8 +136,28 @@ class ScreenshotService {
         do {
             try task.run()
         } catch {
-            completion(.failed("screencapture 启动失败: \(error.localizedDescription)"))
+            try? FileManager.default.removeItem(at: outputURL)
+            DispatchQueue.main.async {
+                completion(.failed("screencapture 启动失败: \(error.localizedDescription)"))
+            }
         }
+    }
+
+    static func result(
+        at url: URL,
+        exitCode: Int32,
+        missingFileResult: CaptureResult
+    ) -> CaptureResult {
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return exitCode == 0 ? missingFileResult :
+                .failed("screencapture 失败（退出码 \(exitCode)），可能是缺少屏幕录制权限")
+        }
+        guard let image = NSImage(contentsOf: url), image.isValid else {
+            return .failed("截图文件读取失败")
+        }
+        return .success(image)
     }
 
     /// Checks if a sharingState=0 window exists at the given Cocoa point

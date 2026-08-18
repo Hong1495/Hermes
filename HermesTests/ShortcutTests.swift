@@ -3,15 +3,10 @@ import Testing
 @testable import Hermes
 
 @Suite struct ShortcutTests {
-    @Test func macOSScreenCaptureShortcutsAreReserved() {
-        #expect(Shortcut(key: .three, modifiers: [.command, .shift]).isSystemScreenshotShortcut)
-        #expect(Shortcut(key: .four, modifiers: [.command, .shift]).isSystemScreenshotShortcut)
-        #expect(Shortcut(key: .five, modifiers: [.command, .shift]).isSystemScreenshotShortcut)
-    }
-
-    @Test func additionalModifierDoesNotMatchSystemScreenCapture() {
-        let shortcut = Shortcut(key: .four, modifiers: [.command, .shift, .option])
-        #expect(!shortcut.isSystemScreenshotShortcut)
+    @Test func systemScreenshotNumberShortcutsAreAllowed() {
+        #expect(Shortcut(key: .three, modifiers: [.command, .shift]).hasGlobalModifier)
+        #expect(Shortcut(key: .four, modifiers: [.command, .shift]).hasGlobalModifier)
+        #expect(Shortcut(key: .five, modifiers: [.command, .shift]).hasGlobalModifier)
     }
 
     @Test func globalShortcutRequiresCommandOptionOrControl() {

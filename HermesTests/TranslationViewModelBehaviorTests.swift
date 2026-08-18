@@ -25,6 +25,13 @@ import Translation
 
     // MARK: - 防抖取消
 
+    @Test func autoTranslateOnPasteUsesConfiguredDefaultWhenUnset() {
+        let defaults = UserDefaults(suiteName: "HermesTests.autoTranslateDefault.\(UUID().uuidString)")!
+        #expect(AppSettings.autoTranslateOnPaste(in: defaults) == AppSettings.Default.autoTranslateOnPaste)
+        defaults.set(false, forKey: AppSettings.Key.autoTranslateOnPaste)
+        #expect(AppSettings.autoTranslateOnPaste(in: defaults) == false)
+    }
+
     @Test func scheduleThenCancelBeforeFireDoesNotSetIsTranslating() async {
         let (vm, appState) = makeVMWithContent()
         vm.scheduleTranslation(immediate: false)
@@ -89,15 +96,13 @@ import Translation
         #expect(result.target.languageCode?.identifier == "zh")
     }
 
-    @Test func manualTargetPreservesSelectedLanguage() {
+    @Test func automaticModeAlwaysUsesTheOppositeChineseEnglishLanguage() {
         let (vm, _) = makeVM()
-        vm.onTargetLangChanged() // 设置为手动模式
-        vm.targetLang = "ja"
+        vm.targetLang = "ja" // stale UI/default value must not affect automatic mode
 
         let result = vm.resolveLanguages(for: "Hello")
-        // 手动选择了日语后，自动检测不应覆盖
-        #expect(result.suggestedTargetCode == nil)
-        #expect(vm.targetLang == "ja")
+        #expect(result.suggestedTargetCode == "zh-CN")
+        #expect(result.target.languageCode?.identifier == "zh")
     }
 
     @Test func explicitSourceLangSkipsAutoDetection() {
@@ -113,7 +118,7 @@ import Translation
 
     @Test func supportedLanguagePairCanPrepareTranslation() {
         #expect(TranslationViewModel.canPrepareTranslation(with: .installed))
-        #expect(TranslationViewModel.canPrepareTranslation(with: .supported))
+        #expect(!TranslationViewModel.canPrepareTranslation(with: .supported))
         #expect(!TranslationViewModel.canPrepareTranslation(with: .unsupported))
     }
 }

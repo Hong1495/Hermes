@@ -18,6 +18,18 @@ final class AppState: ObservableObject {
     @Published var lastCaptureMode: ScreenshotService.CaptureMode = .area
     @Published var translationFocusRequestID = UUID()
     @Published var ocrResultText: String?
+    @Published var errorMessage: String?
+    @Published var errorIsPermissionRelated: Bool = false
+
+    func showError(_ message: String, permissionRelated: Bool = false) {
+        errorMessage = message
+        errorIsPermissionRelated = permissionRelated
+    }
+
+    func clearError() {
+        errorMessage = nil
+        errorIsPermissionRelated = false
+    }
 
     func setScreenshot(_ image: NSImage, mode: ScreenshotService.CaptureMode = .area) {
         capturedImage = image
@@ -28,6 +40,7 @@ final class AppState: ObservableObject {
         translatedText = ""
         translationError = nil
         isTranslating = false
+        clearError()
     }
 
     func prepareForTranslationWorkspace() {
@@ -37,6 +50,7 @@ final class AppState: ObservableObject {
         translatedText = ""
         translationError = nil
         isTranslating = false
+        clearError()
         requestTranslationFocus()
     }
 
@@ -55,6 +69,7 @@ final class AppState: ObservableObject {
         translationError = nil
         isTranslating = false
         ocrResultText = nil
+        clearError()
     }
 
     func clear() {

@@ -30,6 +30,16 @@ final class StatusMenuController {
         captureItem.target = target
         menu.addItem(captureItem)
 
+        let windowItem = NSMenuItem(title: "窗口截图", action: #selector(AppDelegate.captureWindow), keyEquivalent: "w")
+        windowItem.keyEquivalentModifierMask = [.command, .shift]
+        windowItem.target = target
+        menu.addItem(windowItem)
+
+        let screenItem = NSMenuItem(title: "全屏截图", action: #selector(AppDelegate.captureScreen), keyEquivalent: "s")
+        screenItem.keyEquivalentModifierMask = [.command, .shift]
+        screenItem.target = target
+        menu.addItem(screenItem)
+
         let ocrItem = NSMenuItem(title: "OCR 取词", action: #selector(AppDelegate.captureOCR), keyEquivalent: "o")
         ocrItem.keyEquivalentModifierMask = [.command, .shift]
         ocrItem.target = target
@@ -58,5 +68,8 @@ final class StatusMenuController {
     @objc func updateVisibility() {
         let shouldHide = UserDefaults.standard.bool(forKey: AppSettings.Key.hideMenuBarIcon)
         statusItem?.isVisible = !shouldHide
+        // LSUIElement 应用隐藏状态栏图标后仍需保留可恢复入口：显示 Dock 图标，
+        // 点击 Dock 图标时由 AppDelegate 打开设置窗口。
+        NSApp.setActivationPolicy(shouldHide ? .regular : .accessory)
     }
 }

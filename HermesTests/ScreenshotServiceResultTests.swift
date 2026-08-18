@@ -56,6 +56,29 @@ import Testing
         let result: ScreenshotService.CaptureResult = .cancelled
         #expect(result.isCancelled == true)
     }
+
+    @Test func everyCaptureModeRequiresScreenRecordingPermission() {
+        #expect(ScreenshotService.captureRequiresPermission(.area))
+        #expect(ScreenshotService.captureRequiresPermission(.window))
+        #expect(ScreenshotService.captureRequiresPermission(.screen))
+    }
+
+    @Test func captureArgumentsMatchEachMode() {
+        #expect(ScreenshotService.arguments(for: .area, outputPath: "/tmp/area.png") == ["-i", "-x", "/tmp/area.png"])
+        #expect(ScreenshotService.arguments(for: .window, outputPath: "/tmp/window.png") == ["-i", "-W", "-o", "-x", "/tmp/window.png"])
+        #expect(ScreenshotService.arguments(for: .screen, outputPath: "/tmp/screen.png") == ["-x", "/tmp/screen.png"])
+    }
+
+    @Test func missingInteractiveOutputIsReportedAsCancelled() {
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        let result = ScreenshotService.result(at: url, exitCode: 0, missingFileResult: .cancelled)
+
+        if case .cancelled = result {
+            #expect(Bool(true))
+        } else {
+            #expect(Bool(false), "Expected cancelled result")
+        }
+    }
 }
 
 extension ScreenshotService.CaptureResult {
