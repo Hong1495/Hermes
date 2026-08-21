@@ -9,7 +9,16 @@ final class ScreenshotExportService {
     static let shared = ScreenshotExportService()
 
     private let logger = Logger(subsystem: "hera.Hermes", category: "Export")
-    private var clipboardDataProvider: ClipboardImageDataProvider?
+    private let exportQueue = DispatchQueue(
+        label: "hera.Hermes.screenshot-export",
+        qos: .userInitiated
+    )
+
+    enum CopyResult: Equatable {
+        case success
+        case encodeFailed
+        case writeFailed
+    }
 
     enum SaveResult: Equatable {
         case success
@@ -25,6 +34,30 @@ final class ScreenshotExportService {
     private let shadowMargin: CGFloat = 8
 
     // MARK: - Image Generation
+
+    func generateFinalImageAsync(
+        from original: NSImage,
+        annotations: [Annotation],
+        showBorder: Bool,
+        showCornerRadius: Bool,
+        showShadow: Bool,
+        captureMode: ScreenshotService.CaptureMode,
+        completion: @escaping (NSImage?) -> Void
+    ) {
+        exportQueue.async { [self] in
+            let image = autoreleasepool {
+                generateFinalImage(
+                    from: original,
+                    annotations: annotations,
+                    showBorder: showBorder,
+                    showCornerRadius: showCornerRadius,
+                    showShadow: showShadow,
+                    captureMode: captureMode
+                )
+            }
+            completeOnMain(completion, with: image)
+        }
+    }
 
     func generateFinalImage(
         from original: NSImage,
@@ -306,27 +339,52 @@ final class ScreenshotExportService {
 
     // MARK: - Clipboard
 
-    func copyToClipboard(_ image: NSImage) {
-        let pasteboard = NSPasteboard.general
-        let item = NSPasteboardItem()
-        let provider = ClipboardImageDataProvider(image: image)
+    func copyToClipboard(
+        _ image: NSImage,
+        pasteboard: NSPasteboard = .general,
+        completion: @escaping (CopyResult) -> Void
+    ) {
+        exportQueue.async { [self] in
+            guard let data = autoreleasepool(invoking: { pngData(for: image) }) else {
+                logger.error("复制失败: PNG编码失败")
+                completeOnMain(completion, with: .encodeFailed)
+                return
+            }
 
-        item.setDataProvider(provider, forTypes: [.png, .tiff])
-        clipboardDataProvider = provider
+            DispatchQueue.main.async {
+                let item = NSPasteboardItem()
+                item.setData(data, forType: .png)
 
-        pasteboard.clearContents()
-        pasteboard.writeObjects([item])
+                pasteboard.clearContents()
+                if pasteboard.writeObjects([item]) {
+                    completion(.success)
+                } else {
+                    self.logger.error("复制失败: 剪贴板写入失败")
+                    completion(.writeFailed)
+                }
+            }
+        }
     }
 
     // MARK: - File Save
 
     func saveImage(_ image: NSImage, fileName: String, completion: @escaping (SaveResult) -> Void) {
-        guard let data = pngData(for: image) else {
-            logger.error("保存失败: PNG编码失败")
-            completion(.encodeFailed)
-            return
-        }
+        exportQueue.async { [self] in
+            guard let data = autoreleasepool(invoking: { pngData(for: image) }) else {
+                logger.error("保存失败: PNG编码失败")
+                completeOnMain(completion, with: .encodeFailed)
+                return
+            }
 
+            saveEncodedImage(data, fileName: fileName, completion: completion)
+        }
+    }
+
+    private func saveEncodedImage(
+        _ data: Data,
+        fileName: String,
+        completion: @escaping (SaveResult) -> Void
+    ) {
         // 1. Try security-scoped bookmark
         if let bookmarkData = UserDefaults.standard.data(forKey: AppSettings.Key.defaultSavePathBookmark) {
             var isStale = false
@@ -342,7 +400,7 @@ final class ScreenshotExportService {
                 let fileURL = uniqueDestinationURL(for: url.appendingPathComponent(fileName))
                 if (try? data.write(to: fileURL, options: .atomic)) != nil {
                     logger.notice("保存成功: \(fileURL.lastPathComponent, privacy: .public)")
-                    completion(.success)
+                    completeOnMain(completion, with: .success)
                     return
                 }
                 logger.warning("写入 bookmark 目录失败, 尝试 fallback")
@@ -356,34 +414,48 @@ final class ScreenshotExportService {
             let fileURL = uniqueDestinationURL(for: baseURL.appendingPathComponent(fileName))
             if (try? data.write(to: fileURL, options: .atomic)) != nil {
                 logger.notice("保存成功: \(fileURL.lastPathComponent, privacy: .public)")
-                completion(.success)
+                completeOnMain(completion, with: .success)
                 return
             }
             logger.warning("写入 defaultSavePath 失败: \(defaultSavePath, privacy: .public)")
         }
 
         // 3. NSSavePanel fallback
-        logger.notice("弹出 NSSavePanel 用户选择保存路径")
-        let savePanel = NSSavePanel()
-        savePanel.allowedContentTypes = [.png]
-        savePanel.canCreateDirectories = true
-        savePanel.nameFieldStringValue = fileName
-        savePanel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
 
-        savePanel.begin { [weak self] response in
-            if response == .OK, let url = savePanel.url {
-                do {
-                    try data.write(to: url, options: .atomic)
-                    self?.logger.notice("用户选择保存: \(url.lastPathComponent, privacy: .public)")
-                    completion(.success)
-                } catch {
-                    self?.logger.error("NSSavePanel 写入失败: \(error.localizedDescription, privacy: .public)")
-                    completion(.writeFailed)
+            logger.notice("弹出 NSSavePanel 用户选择保存路径")
+            let savePanel = NSSavePanel()
+            savePanel.allowedContentTypes = [.png]
+            savePanel.canCreateDirectories = true
+            savePanel.nameFieldStringValue = fileName
+            savePanel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
+
+            savePanel.begin { [weak self] response in
+                guard let self else { return }
+
+                if response == .OK, let url = savePanel.url {
+                    exportQueue.async {
+                        do {
+                            try data.write(to: url, options: .atomic)
+                            self.logger.notice("用户选择保存: \(url.lastPathComponent, privacy: .public)")
+                            self.completeOnMain(completion, with: .success)
+                        } catch {
+                            self.logger.error("NSSavePanel 写入失败: \(error.localizedDescription, privacy: .public)")
+                            self.completeOnMain(completion, with: .writeFailed)
+                        }
+                    }
+                } else {
+                    logger.notice("用户取消保存")
+                    completion(.userCancelled)
                 }
-            } else {
-                self?.logger.notice("用户取消保存")
-                completion(.userCancelled)
             }
+        }
+    }
+
+    private func completeOnMain<T>(_ completion: @escaping (T) -> Void, with result: T) {
+        DispatchQueue.main.async {
+            completion(result)
         }
     }
 
@@ -404,29 +476,6 @@ final class ScreenshotExportService {
         }
 
         return url
-    }
-}
-
-private final class ClipboardImageDataProvider: NSObject, NSPasteboardItemDataProvider {
-    private let image: NSImage
-
-    init(image: NSImage) {
-        self.image = image
-    }
-
-    func pasteboard(_ pasteboard: NSPasteboard?, item: NSPasteboardItem, provideDataForType type: NSPasteboard.PasteboardType) {
-        switch type {
-        case .png:
-            if let data = ScreenshotExportService.shared.pngData(for: image) {
-                item.setData(data, forType: .png)
-            }
-        case .tiff:
-            if let data = image.tiffRepresentation {
-                item.setData(data, forType: .tiff)
-            }
-        default:
-            break
-        }
     }
 }
 

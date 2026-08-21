@@ -146,6 +146,41 @@ import Testing
         #expect(data!.count > 100, "PNG data should contain pixel data")
     }
 
+    @Test func asyncGenerationCompletesOnMainThread() async {
+        let image = makeTestImage()
+
+        let (result, completedOnMainThread): (NSImage?, Bool) = await withCheckedContinuation { continuation in
+            service.generateFinalImageAsync(
+                from: image,
+                annotations: [],
+                showBorder: false,
+                showCornerRadius: false,
+                showShadow: false,
+                captureMode: .area
+            ) { result in
+                continuation.resume(returning: (result, Thread.isMainThread))
+            }
+        }
+
+        #expect(result != nil)
+        #expect(completedOnMainThread)
+    }
+
+    @Test func clipboardCopyPublishesEagerPNGData() async {
+        let image = makeTestImage()
+        let pasteboard = NSPasteboard(name: .init("hera.HermesTests.\(UUID().uuidString)"))
+        defer { pasteboard.clearContents() }
+
+        let result = await withCheckedContinuation { continuation in
+            service.copyToClipboard(image, pasteboard: pasteboard) { result in
+                continuation.resume(returning: result)
+            }
+        }
+
+        #expect(result == .success)
+        #expect(pasteboard.data(forType: .png)?.isEmpty == false)
+    }
+
     // MARK: - Border + Shapes
 
     @Test func borderAndCornerRadiusTogether() {

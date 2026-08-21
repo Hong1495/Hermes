@@ -2,6 +2,11 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ScreenshotResultView: View {
+    private enum ExportOperation {
+        case copy
+        case save
+    }
+
     @ObservedObject private var appState: AppState
     @ObservedObject var annotationState: AnnotationState
 
@@ -9,6 +14,7 @@ struct ScreenshotResultView: View {
     @State private var showCornerRadius = false
     @State private var showShadow = true
     @State private var toastMessage: String?
+    @State private var exportOperation: ExportOperation?
 
     private let exportService = ScreenshotExportService.shared
 
@@ -114,15 +120,25 @@ struct ScreenshotResultView: View {
 
     private var utilityButtons: some View {
         HStack(spacing: 6) {
-            toolbarButton("复制", systemImage: "square.on.square", style: .secondary) {
+            toolbarButton(
+                "复制",
+                systemImage: "square.on.square",
+                style: .secondary,
+                isWorking: exportOperation == .copy
+            ) {
                 copyImage()
             }
-            .disabled(!hasImage)
+            .disabled(!hasImage || isExporting)
 
-            toolbarButton("保存", systemImage: "arrow.down.circle", style: .primary) {
+            toolbarButton(
+                "保存",
+                systemImage: "arrow.down.circle",
+                style: .primary,
+                isWorking: exportOperation == .save
+            ) {
                 saveImage()
             }
-            .disabled(!hasImage)
+            .disabled(!hasImage || isExporting)
         }
     }
 
@@ -201,14 +217,29 @@ struct ScreenshotResultView: View {
         appState.capturedImage != nil
     }
 
+    private var isExporting: Bool {
+        exportOperation != nil
+    }
+
     private func toolbarButton(
         _ title: String,
         systemImage: String,
         style: ModernButtonStyleType,
+        isWorking: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
+            HStack(spacing: 5) {
+                if isWorking {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(width: 14, height: 14)
+                } else {
+                    Image(systemName: systemImage)
+                        .frame(width: 14, height: 14)
+                }
+                Text(title)
+            }
         }
         .modernStyle(style)
     }
@@ -243,22 +274,35 @@ struct ScreenshotResultView: View {
             toastMessage = "没有可导出的图片"
             return
         }
-        guard let image = exportService.generateFinalImage(
+        exportOperation = .copy
+        exportService.generateFinalImageAsync(
             from: original,
             annotations: annotationState.annotations,
             showBorder: showBorder,
             showCornerRadius: showCornerRadius,
             showShadow: showShadow,
             captureMode: appState.lastCaptureMode
-        ) else {
-            toastMessage = "导出图片生成失败"
-            return
-        }
+        ) { image in
+            guard let image else {
+                exportOperation = nil
+                toastMessage = "导出图片生成失败"
+                return
+            }
 
-        exportService.copyToClipboard(image)
-        toastMessage = "已复制到剪贴板"
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.closeWindow()
+            exportService.copyToClipboard(image) { result in
+                exportOperation = nil
+                switch result {
+                case .success:
+                    toastMessage = "已复制到剪贴板"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        self.closeWindow()
+                    }
+                case .encodeFailed:
+                    toastMessage = "图片编码失败"
+                case .writeFailed:
+                    toastMessage = "剪贴板写入失败"
+                }
+            }
         }
     }
 
@@ -267,35 +311,40 @@ struct ScreenshotResultView: View {
             toastMessage = "没有可保存的图片"
             return
         }
-        guard let image = exportService.generateFinalImage(
+        exportOperation = .save
+        exportService.generateFinalImageAsync(
             from: original,
             annotations: annotationState.annotations,
             showBorder: showBorder,
             showCornerRadius: showCornerRadius,
             showShadow: showShadow,
             captureMode: appState.lastCaptureMode
-        ) else {
-            toastMessage = "导出图片生成失败"
-            return
-        }
+        ) { image in
+            guard let image else {
+                exportOperation = nil
+                toastMessage = "导出图片生成失败"
+                return
+            }
 
-        let fileName = "Screenshot \(Date().formatted(date: .numeric, time: .shortened)).png"
-            .replacingOccurrences(of: "/", with: "-")
-            .replacingOccurrences(of: ":", with: ".")
+            let fileName = "Screenshot \(Date().formatted(date: .numeric, time: .shortened)).png"
+                .replacingOccurrences(of: "/", with: "-")
+                .replacingOccurrences(of: ":", with: ".")
 
-        exportService.saveImage(image, fileName: fileName) { [self] result in
-            switch result {
-            case .success:
-                self.toastMessage = "保存成功"
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    self.closeWindow()
+            exportService.saveImage(image, fileName: fileName) { [self] result in
+                exportOperation = nil
+                switch result {
+                case .success:
+                    self.toastMessage = "保存成功"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        self.closeWindow()
+                    }
+                case .encodeFailed:
+                    self.toastMessage = "图片编码失败"
+                case .writeFailed:
+                    self.toastMessage = "文件写入失败，请检查权限或磁盘空间"
+                case .userCancelled:
+                    break
                 }
-            case .encodeFailed:
-                self.toastMessage = "图片编码失败"
-            case .writeFailed:
-                self.toastMessage = "文件写入失败，请检查权限或磁盘空间"
-            case .userCancelled:
-                break
             }
         }
     }
