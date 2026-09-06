@@ -107,20 +107,18 @@ struct MainView: View {
                     .ignoresSafeArea()
             }
         } detail: {
-            ZStack {
-                // 飘逸灵动液态玻璃背景，穿透延伸至顶部窗口标题栏与边缘
+            MainSectionView(
+                section: selection ?? .overview,
+                cleanupViewModel: cleanupViewModel,
+                systemMonitor: systemMonitor,
+                onSelectSection: { selection = $0 }
+            )
+            .background {
                 ZStack {
                     VisualEffectBlur(material: .underWindowBackground, blendingMode: .behindWindow)
                     Theme.Colors.panelBackground.opacity(0.35)
                 }
                 .ignoresSafeArea()
-
-                MainSectionView(
-                    section: selection ?? .overview,
-                    cleanupViewModel: cleanupViewModel,
-                    systemMonitor: systemMonitor,
-                    onSelectSection: { selection = $0 }
-                )
             }
         }
         .accentColor(Theme.Colors.accent)

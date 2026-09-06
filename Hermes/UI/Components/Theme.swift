@@ -119,22 +119,23 @@ struct GlassCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(Theme.Colors.panelElevated)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .overlay {
+            .background {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.45), Color.white.opacity(0.08)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
+                    .fill(Theme.Colors.panelElevated)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.45), Color.white.opacity(0.08)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    }
+                    .shadow(color: Theme.Shadows.card.color, radius: Theme.Shadows.card.radius, x: Theme.Shadows.card.x, y: Theme.Shadows.card.y)
             }
-            .shadow(color: Theme.Shadows.card.color, radius: Theme.Shadows.card.radius, x: Theme.Shadows.card.x, y: Theme.Shadows.card.y)
     }
 }
 
@@ -145,22 +146,23 @@ struct GlassCardElevatedModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(Theme.Colors.panelElevated)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .glassEffect(.regular.tint(Theme.Colors.accent.opacity(0.06)), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .overlay {
+            .background {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.55), Color.white.opacity(0.12)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
+                    .fill(Theme.Colors.panelElevated)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.55), Color.white.opacity(0.12)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    }
+                    .shadow(color: Theme.Shadows.panel.color, radius: Theme.Shadows.panel.radius, x: Theme.Shadows.panel.x, y: Theme.Shadows.panel.y)
             }
-            .shadow(color: Theme.Shadows.panel.color, radius: Theme.Shadows.panel.radius, x: Theme.Shadows.panel.x, y: Theme.Shadows.panel.y)
     }
 }
 

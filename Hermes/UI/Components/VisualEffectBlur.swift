@@ -1,12 +1,16 @@
 import SwiftUI
 import Cocoa
 
+final class FlippedVisualEffectView: NSVisualEffectView {
+    override var isFlipped: Bool { true }
+}
+
 struct VisualEffectBlur: NSViewRepresentable {
     var material: NSVisualEffectView.Material = .hudWindow
     var blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
     
     func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
+        let view = FlippedVisualEffectView()
         view.material = material
         view.blendingMode = blendingMode
         view.state = .active
