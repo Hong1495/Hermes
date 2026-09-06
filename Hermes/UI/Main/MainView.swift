@@ -135,6 +135,12 @@ struct MainView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsFromMenu)) { _ in
             selection = .settings
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openCleanupFromMenu)) { _ in
+            selection = .cleanup
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openAboutFromMenu)) { _ in
+            selection = .settings
+        }
     }
 }
 

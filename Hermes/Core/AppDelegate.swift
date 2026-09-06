@@ -23,7 +23,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusMenuController.setup(target: self)
         setupToolNotifications()
-        mainWindowController?.showWindow(nil)
+
+        // 启动时静默常驻在系统菜单栏与 Dock，主界面仅在用户由菜单或 Dock 触发时呼出
+        let shouldAutoCheck = UserDefaults.standard.object(forKey: AppSettings.Key.autoCheckForUpdates) as? Bool ?? AppSettings.Default.autoCheckForUpdates
+        if shouldAutoCheck {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                UpdateManager.shared.checkForUpdates(isUserInitiated: false)
+            }
+        }
 
         // 窗口关闭通知
         NotificationCenter.default.addObserver(forName: .closeFloatingWindow, object: nil, queue: .main) { [weak self] _ in
@@ -55,7 +62,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showCleanup() {
-        mainWindowController?.showWindow(nil)
+        showApp()
+        NotificationCenter.default.post(name: .openCleanupFromMenu, object: nil)
+    }
+
+    @objc func checkForUpdates() {
+        UpdateManager.shared.checkForUpdates(isUserInitiated: true)
+    }
+
+    @objc func showAbout() {
+        showApp()
+        NotificationCenter.default.post(name: .openAboutFromMenu, object: nil)
     }
 
     @objc func captureArea() {
@@ -103,12 +120,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(forName: .openTranslationTool, object: nil, queue: .main) { [weak self] _ in
             self?.showTranslation()
         }
+        NotificationCenter.default.addObserver(forName: .checkForUpdates, object: nil, queue: .main) { [weak self] _ in
+            self?.checkForUpdates()
+        }
     }
 
     private func setupApplicationMenu() {
         let mainMenu = NSMenu()
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
+
+        let aboutItem = NSMenuItem(title: "关于 Hermes", action: #selector(showAbout), keyEquivalent: "")
+        aboutItem.target = self
+        appMenu.addItem(aboutItem)
+
+        let updateItem = NSMenuItem(title: "检查更新...", action: #selector(checkForUpdates), keyEquivalent: "")
+        updateItem.target = self
+        appMenu.addItem(updateItem)
+
+        appMenu.addItem(.separator())
 
         let settingsItem = NSMenuItem(title: "设置...", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self

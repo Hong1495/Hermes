@@ -9,4 +9,7 @@ extension Notification.Name {
     static let openOCRTool = Notification.Name("OpenOCRTool")
     static let openTranslationTool = Notification.Name("OpenTranslationTool")
     static let openSettingsFromMenu = Notification.Name("OpenSettingsFromMenu")
+    static let openAboutFromMenu = Notification.Name("OpenAboutFromMenu")
+    static let openCleanupFromMenu = Notification.Name("OpenCleanupFromMenu")
+    static let checkForUpdates = Notification.Name("CheckForUpdates")
 }

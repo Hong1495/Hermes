@@ -78,6 +78,9 @@ struct UnifiedSettingsView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openAboutFromMenu)) { _ in
+            selectedTab = .about
+        }
     }
 }
 
@@ -85,6 +88,7 @@ struct UnifiedSettingsView: View {
 private struct GeneralSettingsTab: View {
     @AppStorage(AppSettings.Key.launchAtLogin) var launchAtLogin = false
     @AppStorage(AppSettings.Key.hideMenuBarIcon) var hideMenuBarIcon = false
+    @AppStorage(AppSettings.Key.autoCheckForUpdates) var autoCheckForUpdates = AppSettings.Default.autoCheckForUpdates
     @AppStorage(AppSettings.Key.appTheme) var appTheme: String = AppSettings.Default.appTheme
     @AppStorage(AppSettings.Key.defaultSavePath) var defaultSavePath: String = ""
 
@@ -110,6 +114,28 @@ private struct GeneralSettingsTab: View {
                     .onChange(of: hideMenuBarIcon) { _, _ in
                         NotificationCenter.default.post(name: .updateMenuBarState, object: nil)
                     }
+
+                Divider()
+
+                Toggle("启动时自动检查新版本", isOn: $autoCheckForUpdates)
+            }
+
+            SettingsCard(title: "在线升级") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("当前版本 v\(UpdateManager.shared.currentVersion) (Build \(UpdateManager.shared.currentBuild))")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                        Text("Hermes 自动对接 GitHub 官方发布通道，随时获取最新优化。")
+                            .font(.caption)
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
+                    Spacer()
+                    Button("检查更新...") {
+                        UpdateManager.shared.checkForUpdates(isUserInitiated: true)
+                    }
+                    .modernStyle(.secondary)
+                }
             }
 
             SettingsCard(title: "外观主题") {
@@ -342,69 +368,209 @@ private struct WhitelistSettingsTab: View {
 
 // MARK: - About Tab
 private struct AboutSettingsTab: View {
+    @ObservedObject private var updateManager = UpdateManager.shared
+    @AppStorage(AppSettings.Key.autoCheckForUpdates) var autoCheckForUpdates = AppSettings.Default.autoCheckForUpdates
+
     var body: some View {
-        SettingsCard(title: "关于 Hermes") {
-            VStack(spacing: Theme.Spacing.large) {
-                HStack(spacing: Theme.Spacing.large) {
-                    Image(nsImage: NSApp.applicationIconImage)
-                        .resizable()
-                        .frame(width: 64, height: 64)
-                        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-                        .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.4), lineWidth: 1)
-                        }
+        VStack(spacing: Theme.Spacing.medium) {
+            SettingsCard(title: "关于 Hermes") {
+                VStack(spacing: Theme.Spacing.large) {
+                    HStack(spacing: Theme.Spacing.large) {
+                        Image(nsImage: NSApp.applicationIconImage)
+                            .resizable()
+                            .frame(width: 64, height: 64)
+                            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                            .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                    .strokeBorder(Color.white.opacity(0.4), lineWidth: 1)
+                            }
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 8) {
-                            Text("Hermes")
-                                .font(.title2.weight(.bold))
-                                .foregroundStyle(Theme.Colors.textPrimary)
-                            Text("macOS 27 Liquid")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(Theme.Colors.accent)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 2)
-                                .background(Theme.Colors.accent.opacity(0.15))
-                                .clipShape(Capsule())
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 8) {
+                                Text("Hermes")
+                                    .font(.title2.weight(.bold))
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                Text("macOS 27 Liquid")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(Theme.Colors.accent)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2)
+                                    .background(Theme.Colors.accent.opacity(0.15))
+                                    .clipShape(Capsule())
+                            }
+                            Text("版本 \(updateManager.currentVersion) (Build \(updateManager.currentBuild)) · 深度系统维护与空间分析套件")
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                            Text("深度对标 Mole 性能调优哲学，开箱即用的系统清理、磁盘分析、自愈维护与快捷键浮动工具链。")
+                                .font(.caption)
+                                .foregroundStyle(Theme.Colors.textTertiary)
                         }
-                        Text("版本 1.2.0 · 深度系统维护与空间分析套件")
-                            .font(.subheadline)
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                        Text("深度对标 Mole 性能调优哲学，开箱即用的系统清理、磁盘分析、自愈维护与快捷键浮动工具链。")
-                            .font(.caption)
-                            .foregroundStyle(Theme.Colors.textTertiary)
+                        Spacer()
                     }
-                    Spacer()
-                }
 
-                Divider()
+                    Divider()
 
-                // 特性卡片四宫格
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Spacing.medium) {
-                    FeatureHighlightCard(
-                        icon: "sparkles",
-                        title: "10+ 维度深度清理",
-                        detail: "系统缓存、浏览器、开发产物、包管理器与模型权重，移入废纸篓安全不误删。"
-                    )
-                    FeatureHighlightCard(
-                        icon: "waveform.path.ecg",
-                        title: "系统实时状态雷达",
-                        detail: "CPU 负载、内存压力与分布、电源健康度及系统运行时间秒级侦测。"
-                    )
-                    FeatureHighlightCard(
-                        icon: "shield.lefthalf.filled",
-                        title: "macOS 原生自愈维护",
-                        detail: "安全重置 DNS、QuickLook、字体缓存及内存释放，无需第三方常驻守护。"
-                    )
-                    FeatureHighlightCard(
-                        icon: "command",
-                        title: "独立快捷键工具链",
-                        detail: "⌘⇧X 选区截图 · ⌘⇧W 窗口截图 · ⌘⇧O 离线OCR · ⌘⇧T 神经翻译，随时呼出浮窗。"
-                    )
+                    // 特性卡片四宫格
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Spacing.medium) {
+                        FeatureHighlightCard(
+                            icon: "sparkles",
+                            title: "10+ 维度深度清理",
+                            detail: "系统缓存、浏览器、开发产物、包管理器与模型权重，移入废纸篓安全不误删。"
+                        )
+                        FeatureHighlightCard(
+                            icon: "waveform.path.ecg",
+                            title: "系统实时状态雷达",
+                            detail: "CPU 负载、内存压力与分布、电源健康度及系统运行时间秒级侦测。"
+                        )
+                        FeatureHighlightCard(
+                            icon: "shield.lefthalf.filled",
+                            title: "macOS 原生自愈维护",
+                            detail: "安全重置 DNS、QuickLook、字体缓存及内存释放，无需第三方常驻守护。"
+                        )
+                        FeatureHighlightCard(
+                            icon: "command",
+                            title: "独立快捷键工具链",
+                            detail: "⌘⇧X 选区截图 · ⌘⇧W 窗口截图 · ⌘⇧O 离线OCR · ⌘⇧T 神经翻译，随时呼出浮窗。"
+                        )
+                    }
                 }
             }
+
+            // 软件更新卡片
+            SettingsCard(title: "软件更新与支持") {
+                VStack(alignment: .leading, spacing: Theme.Spacing.medium) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 8) {
+                                Text("更新状态")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+
+                                updateStatusBadge
+                            }
+
+                            if let lastCheck = updateManager.lastCheckDate {
+                                Text("上次检查时间: \(lastCheck.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption2)
+                                    .foregroundStyle(Theme.Colors.textTertiary)
+                            } else {
+                                Text("尚未执行更新检查")
+                                    .font(.caption2)
+                                    .foregroundStyle(Theme.Colors.textTertiary)
+                            }
+                        }
+
+                        Spacer()
+
+                        Button {
+                            updateManager.checkForUpdates(isUserInitiated: true)
+                        } label: {
+                            HStack(spacing: 6) {
+                                if updateManager.status == .checking {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                        .font(.system(size: 11, weight: .semibold))
+                                }
+                                Text(updateManager.status == .checking ? "正在检查..." : "检查更新")
+                            }
+                        }
+                        .modernStyle(.primary)
+                        .disabled(updateManager.status == .checking)
+                    }
+
+                    if case .available(let release) = updateManager.status {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("发现新版本: \(release.tagName) (\(release.name))")
+                                    .font(.subheadline.weight(.bold))
+                                    .foregroundStyle(Theme.Colors.accent)
+                                Spacer()
+                                Button("立即下载更新") {
+                                    updateManager.downloadUpdate(for: release)
+                                }
+                                .modernStyle(.primary)
+
+                                Button("查看发行说明") {
+                                    updateManager.openReleasePage(for: release)
+                                }
+                                .modernStyle(.secondary)
+                            }
+
+                            if !release.body.isEmpty {
+                                Text(release.body)
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.Colors.textSecondary)
+                                    .lineLimit(4)
+                                    .padding(8)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Theme.Colors.panelBackground.opacity(0.6))
+                                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            }
+                        }
+                        .padding(Theme.Spacing.medium)
+                        .background(Theme.Colors.accent.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .strokeBorder(Theme.Colors.accent.opacity(0.3), lineWidth: 1)
+                        }
+                    }
+
+                    Divider()
+
+                    Toggle("启动时在后台自动检测新版本", isOn: $autoCheckForUpdates)
+                        .font(.subheadline)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var updateStatusBadge: some View {
+        switch updateManager.status {
+        case .idle:
+            Text("就绪")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(Theme.Colors.textTertiary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.secondary.opacity(0.12))
+                .clipShape(Capsule())
+        case .checking:
+            Text("检查中...")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(Theme.Colors.accent)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Theme.Colors.accent.opacity(0.15))
+                .clipShape(Capsule())
+        case .upToDate:
+            Text("已是最新版")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(Theme.Colors.success)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Theme.Colors.success.opacity(0.15))
+                .clipShape(Capsule())
+        case .available(let release):
+            Text("有新版 \(release.tagName)")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(Theme.Colors.accent)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Theme.Colors.accent.opacity(0.18))
+                .clipShape(Capsule())
+        case .failed:
+            Text("检查失败")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(Theme.Colors.warning)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Theme.Colors.warning.opacity(0.15))
+                .clipShape(Capsule())
         }
     }
 }

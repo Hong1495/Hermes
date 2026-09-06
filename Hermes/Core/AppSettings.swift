@@ -23,6 +23,7 @@ enum AppSettings {
         static let lastTargetLang = "lastTargetLang"
         static let autoTranslateOnPaste = "autoTranslateOnPaste"
         static let showOCRPreview = "showOCRPreview"
+        static let autoCheckForUpdates = "autoCheckForUpdates"
     }
 
     // MARK: - Default Values
@@ -33,6 +34,7 @@ enum AppSettings {
         static let ocrFallbackLanguages = ["zh-Hans", "en-US"]
         static let autoTranslateOnPaste = true
         static let showOCRPreview = true
+        static let autoCheckForUpdates = true
     }
 
     static func showOCRPreview(in defaults: UserDefaults = .standard) -> Bool {

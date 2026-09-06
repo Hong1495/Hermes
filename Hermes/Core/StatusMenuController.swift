@@ -63,6 +63,13 @@ final class StatusMenuController {
         let settingsItem = NSMenuItem(title: "设置...", action: #selector(AppDelegate.showSettings), keyEquivalent: ",")
         settingsItem.target = target
         menu.addItem(settingsItem)
+
+        let updateItem = NSMenuItem(title: "检查更新...", action: #selector(AppDelegate.checkForUpdates), keyEquivalent: "")
+        updateItem.target = target
+        menu.addItem(updateItem)
+
+        menu.addItem(NSMenuItem.separator())
+
         let quitItem = NSMenuItem(title: "退出", action: #selector(AppDelegate.quitApp), keyEquivalent: "q")
         quitItem.target = target
         menu.addItem(quitItem)
