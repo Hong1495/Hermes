@@ -49,8 +49,20 @@ struct RootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.Colors.background)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.large, style: .continuous))
+        .background(Theme.Colors.panelElevated)
+        .background(VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.extraLarge, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.extraLarge, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.4), Color.white.opacity(0.08)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        }
         .shadow(
             color: Theme.Shadows.panel.color,
             radius: Theme.Shadows.panel.radius,

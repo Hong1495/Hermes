@@ -251,7 +251,7 @@ struct ScreenshotResultView: View {
                 .background(isActive ? Theme.Colors.accentSoft : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .modernStyle(.icon)
         .foregroundStyle(isActive ? Theme.Colors.accent : Theme.Colors.textSecondary)
         .disabled(disabled)
         .opacity(disabled ? 0.45 : 1)

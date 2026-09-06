@@ -25,6 +25,15 @@ final class StatusMenuController {
 
         let menu = NSMenu()
 
+        let openItem = NSMenuItem(title: "打开 Hermes", action: #selector(AppDelegate.showApp), keyEquivalent: "")
+        openItem.target = target
+        menu.addItem(openItem)
+
+        let cleanupItem = NSMenuItem(title: "空间清理", action: #selector(AppDelegate.showCleanup), keyEquivalent: "")
+        cleanupItem.target = target
+        menu.addItem(cleanupItem)
+        menu.addItem(NSMenuItem.separator())
+
         let captureItem = NSMenuItem(title: "选区截图", action: #selector(AppDelegate.captureArea), keyEquivalent: "x")
         captureItem.keyEquivalentModifierMask = [.command, .shift]
         captureItem.target = target

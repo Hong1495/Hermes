@@ -1,6 +1,7 @@
 import Cocoa
 import SwiftUI
 
+@MainActor
 class SettingsWindowController: NSWindowController {
     
     init() {
@@ -9,8 +10,13 @@ class SettingsWindowController: NSWindowController {
         
         let window = NSWindow(contentViewController: hostingController)
         window.title = "设置"
-        window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 540, height: 380))
+        window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = true
+        window.setContentSize(NSSize(width: 580, height: 440))
         window.center()
         // Ensure it floats above even if app is background
         window.level = .normal

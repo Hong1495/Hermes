@@ -3,6 +3,7 @@ import SwiftUI
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var windowController: FloatingWindowController?
+    var mainWindowController: MainWindowController?
     var settingsWindowController: SettingsWindowController?
 
     private let statusMenuController = StatusMenuController()
@@ -10,16 +11,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let captureCoordinator = CaptureCoordinator(appState: .shared)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        NSApp.setActivationPolicy(.regular)
         AppSettings.updateAppearance(
             UserDefaults.standard.string(forKey: AppSettings.Key.appTheme) ?? AppSettings.Default.appTheme
         )
 
         windowController = FloatingWindowController(appState: .shared)
+        mainWindowController = MainWindowController()
         captureCoordinator.windowController = windowController
         setupApplicationMenu()
 
         statusMenuController.setup(target: self)
+        setupToolNotifications()
+        mainWindowController?.showWindow(nil)
 
         // 窗口关闭通知
         NotificationCenter.default.addObserver(forName: .closeFloatingWindow, object: nil, queue: .main) { [weak self] _ in
@@ -42,7 +46,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showApp() {
-        windowController?.showWindow()
+        mainWindowController?.showWindow(nil)
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showApp()
+        return true
+    }
+
+    @objc func showCleanup() {
+        mainWindowController?.showWindow(nil)
     }
 
     @objc func captureArea() {
@@ -66,15 +79,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showSettings() {
-        if settingsWindowController == nil {
-            settingsWindowController = SettingsWindowController()
-        }
-        settingsWindowController?.showWindow(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        showApp()
+        NotificationCenter.default.post(name: .openSettingsFromMenu, object: nil)
     }
 
     @objc func quitApp() {
         NSApp.terminate(nil)
+    }
+
+    private func setupToolNotifications() {
+        NotificationCenter.default.addObserver(forName: .openScreenshotTool, object: nil, queue: .main) { [weak self] _ in
+            self?.captureArea()
+        }
+        NotificationCenter.default.addObserver(forName: .openScreenshotWindowTool, object: nil, queue: .main) { [weak self] _ in
+            self?.captureWindow()
+        }
+        NotificationCenter.default.addObserver(forName: .openScreenshotScreenTool, object: nil, queue: .main) { [weak self] _ in
+            self?.captureScreen()
+        }
+        NotificationCenter.default.addObserver(forName: .openOCRTool, object: nil, queue: .main) { [weak self] _ in
+            self?.captureOCR()
+        }
+        NotificationCenter.default.addObserver(forName: .openTranslationTool, object: nil, queue: .main) { [weak self] _ in
+            self?.showTranslation()
+        }
     }
 
     private func setupApplicationMenu() {

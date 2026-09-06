@@ -151,7 +151,8 @@ struct TranslationView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .background(Theme.Colors.background)
+        .background(.ultraThinMaterial)
+        .glassEffect(.regular, in: Rectangle())
     }
 
     // MARK: - Result Pane
@@ -195,7 +196,8 @@ struct TranslationView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .background(Theme.Colors.panelBackground)
+        .background(.ultraThinMaterial)
+        .glassEffect(.regular, in: Rectangle())
     }
 
     // MARK: - Footer Bar

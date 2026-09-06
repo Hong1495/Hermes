@@ -29,7 +29,7 @@ struct SettingsView: View {
                             Image(systemName: tab.icon)
                                 .font(.system(size: 20))
                                 .padding(6)
-                                .background(selectedTab == tab ? Color(nsColor: .selectedControlColor).opacity(0.15) : Color.clear)
+                                .background(selectedTab == tab ? Theme.Colors.accentSoft.opacity(0.5) : Color.clear)
                                 .cornerRadius(8)
                                 .shadow(color: selectedTab == tab ? .black.opacity(0.05) : .clear, radius: 2, x: 0, y: 1)
                             
@@ -38,14 +38,15 @@ struct SettingsView: View {
                                 .fontWeight(selectedTab == tab ? .medium : .regular)
                         }
                         .frame(width: 60)
-                        .foregroundColor(selectedTab == tab ? .accentColor : .secondary)
+                        .foregroundColor(selectedTab == tab ? Theme.Colors.accent : Theme.Colors.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.vertical, 20)
+            .padding(.top, 28)
+            .padding(.bottom, 16)
             .frame(maxWidth: .infinity)
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background(Theme.Colors.panelBackground.opacity(0.5))
             
             Divider()
             
@@ -62,7 +63,8 @@ struct SettingsView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Theme.Colors.background)
+        .background(VisualEffectBlur(material: .sidebar, blendingMode: .behindWindow))
         .hideScrollIndicators()
     }
 }
