@@ -161,13 +161,18 @@ final class CleanupViewModel: ObservableObject {
 
     private func automaticRoots() -> [URL] {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        return [
+        var roots = [
             home.appendingPathComponent("Downloads", isDirectory: true),
+            home.appendingPathComponent("Desktop", isDirectory: true),
+            home.appendingPathComponent("Documents", isDirectory: true),
             home.appendingPathComponent("Library", isDirectory: true),
             home.appendingPathComponent("Projects", isDirectory: true),
             home.appendingPathComponent("GitHub", isDirectory: true),
             home.appendingPathComponent("dev", isDirectory: true),
             home.appendingPathComponent("Developer", isDirectory: true),
+            home.appendingPathComponent("Code", isDirectory: true),
+            home.appendingPathComponent("Workspace", isDirectory: true),
+            home.appendingPathComponent("开发", isDirectory: true),
             home.appendingPathComponent(".npm", isDirectory: true),
             home.appendingPathComponent(".cache", isDirectory: true),
             home.appendingPathComponent(".cargo", isDirectory: true),
@@ -178,5 +183,20 @@ final class CleanupViewModel: ObservableObject {
             home.appendingPathComponent(".Trash", isDirectory: true),
             home.appendingPathComponent(".yarn", isDirectory: true)
         ]
+
+        // Keep execution roots aligned with DeveloperArtifactScanner, which
+        // also discovers development folders on mounted external volumes.
+        let volumesURL = URL(fileURLWithPath: "/Volumes", isDirectory: true)
+        if let volumes = try? FileManager.default.contentsOfDirectory(
+            at: volumesURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) {
+            let names = ["开发", "Projects", "dev", "Developer", "Code", "Workspace", "GitHub"]
+            for volume in volumes where !["Macintosh HD", "Recovery"].contains(volume.lastPathComponent) {
+                roots.append(contentsOf: names.map { volume.appendingPathComponent($0, isDirectory: true) })
+            }
+        }
+        return roots.filter { FileManager.default.fileExists(atPath: $0.path) }
     }
 }

@@ -100,28 +100,32 @@ actor ApplicationScanner {
     /// Lightweight path used by the cleanup flow. It avoids traversing every
     /// installed app bundle just to identify orphaned Library directories.
     func scanResiduals() async -> [ApplicationResidual] {
-        let identifiers = discoverInstalledIdentifiers()
-        let names = discoverInstalledNames()
-        return orphanResiduals(excludingIdentifiers: identifiers, excludingNames: names)
+        // Allow large Library trees enough time to finish while retaining a
+        // hard bound for filesystem providers that never return.
+        let deadline = Date().addingTimeInterval(45)
+        let identifiers = discoverInstalledIdentifiers(deadline: deadline)
+        let names = discoverInstalledNames(deadline: deadline)
+        return orphanResiduals(excludingIdentifiers: identifiers, excludingNames: names, deadline: deadline)
     }
 
-    private func discoverInstalledIdentifiers() -> Set<String> {
-        discoverBundles().compactMap(\.bundleIdentifier).reduce(into: Set<String>()) { $0.insert($1) }
+    private func discoverInstalledIdentifiers(deadline: Date) -> Set<String> {
+        discoverBundles(deadline: deadline).compactMap(\.bundleIdentifier).reduce(into: Set<String>()) { $0.insert($1) }
     }
 
-    private func discoverInstalledNames() -> Set<String> {
-        Set(discoverBundles().map { bundle in
+    private func discoverInstalledNames(deadline: Date) -> Set<String> {
+        Set(discoverBundles(deadline: deadline).map { bundle in
             ((bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
                 ?? (bundle.object(forInfoDictionaryKey: "CFBundleName") as? String)
                 ?? "").lowercased()
         }.filter { !$0.isEmpty })
     }
 
-    private func discoverBundles() -> [Bundle] {
+    private func discoverBundles(deadline: Date? = nil) -> [Bundle] {
         let home = fileManager.homeDirectoryForCurrentUser
         let roots = [URL(fileURLWithPath: "/Applications", isDirectory: true), home.appendingPathComponent("Applications", isDirectory: true)]
-        return roots.flatMap { root in
-            (try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+        return roots.flatMap { root -> [URL] in
+            if let deadline, Date() >= deadline { return [] }
+            return (try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
         }.filter { $0.pathExtension.caseInsensitiveCompare("app") == .orderedSame }
             .compactMap { Bundle(url: $0) }
     }
@@ -210,7 +214,7 @@ actor ApplicationScanner {
         return found.sorted { $0.size > $1.size }
     }
 
-    private func orphanResiduals(excludingIdentifiers: Set<String>, excludingNames: Set<String>) -> [ApplicationResidual] {
+    private func orphanResiduals(excludingIdentifiers: Set<String>, excludingNames: Set<String>, deadline: Date? = nil) -> [ApplicationResidual] {
         let home = fileManager.homeDirectoryForCurrentUser
         let roots: [(URL, String)] = [
             (home.appendingPathComponent("Library/Application Support", isDirectory: true), "应用支持残留"),
@@ -221,6 +225,7 @@ actor ApplicationScanner {
         var results: [ApplicationResidual] = []
 
         for (root, relationship) in roots where fileManager.fileExists(atPath: root.path) {
+            if let deadline, Date() >= deadline { break }
             guard let urls = try? fileManager.contentsOfDirectory(
                 at: root,
                 includingPropertiesForKeys: [.isDirectoryKey],
@@ -228,6 +233,7 @@ actor ApplicationScanner {
             ) else { continue }
 
             for url in urls {
+                if let deadline, Date() >= deadline { break }
                 let name = url.lastPathComponent
                 let cleanName = name.hasSuffix(".savedState") ? String(name.dropLast(11)) : name
 

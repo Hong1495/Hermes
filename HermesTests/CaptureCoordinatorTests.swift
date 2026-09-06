@@ -36,7 +36,10 @@ import Testing
         )
 
         coordinator.capture(mode: .screen)
-        try await Task.sleep(for: .milliseconds(20))
+        for _ in 0..<10 {
+            if appState.capturedImage != nil { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
 
         #expect(screenshotService.requestedModes == [.screen])
         #expect(appState.capturedImage === image)

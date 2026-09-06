@@ -53,10 +53,9 @@ actor CleanupOrchestrator {
         async let s7 = trashScanner.scan()
 
         onProgress?("正在检查已卸载应用残留…", 0.98)
-        async let applicationScan = applicationScanner.scanResiduals()
-
         let snapshots = await [s1, s2, s3, s4, s5, s6, s7]
-        let residuals = await applicationScan.map { residual in
+        let residualScan = await scanResidualsWithTimeout()
+        let residuals = residualScan.items.map { residual in
             CleanupItem(
                 category: .applicationResiduals,
                 path: residual.path,
@@ -68,7 +67,7 @@ actor CleanupOrchestrator {
                 selectedByDefault: residual.selectedByDefault
             )
         }
-        onProgress?("扫描完成", 1.0)
+        onProgress?(residualScan.timedOut ? "扫描完成（已跳过耗时残留检查）" : "扫描完成", 1.0)
 
         return merge(
             snapshots + [CleanupScanSnapshot(items: residuals)],
@@ -95,5 +94,29 @@ actor CleanupOrchestrator {
             errorCount: snapshots.reduce(0) { $0 + $1.errorCount },
             wasCancelled: snapshots.contains { $0.wasCancelled }
         )
+    }
+
+    private struct ResidualScanResult: Sendable {
+        let items: [ApplicationResidual]
+        let timedOut: Bool
+    }
+
+    /// Residual discovery touches user Library directories and can encounter
+    /// slow or unavailable filesystem providers. Bound it so the overall scan
+    /// always completes and remains usable.
+    private func scanResidualsWithTimeout() async -> ResidualScanResult {
+        await withTaskGroup(of: ResidualScanResult.self) { group in
+            group.addTask { [applicationScanner] in
+                let items = await applicationScanner.scanResiduals()
+                return ResidualScanResult(items: items, timedOut: false)
+            }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(60))
+                return ResidualScanResult(items: [], timedOut: true)
+            }
+            let result = await group.next() ?? ResidualScanResult(items: [], timedOut: true)
+            group.cancelAll()
+            return result
+        }
     }
 }

@@ -9,7 +9,7 @@ final class StatusMenuController {
 
         if let button = statusItem?.button {
             if let image = NSImage(named: "MenuBarIcon") {
-                image.size = NSSize(width: 16, height: 16)
+                image.size = NSSize(width: 18, height: 18)
                 image.isTemplate = true
                 button.image = image
             } else {
