@@ -36,6 +36,19 @@ xcodebuild -project Hermes.xcodeproj \
   CODE_SIGNING_ALLOWED=NO
 ```
 
+## First Launch
+
+The public preview archive is ad-hoc signed and is not notarized with an Apple Developer ID. After downloading, unzip it, then Control-click `Hermes.app` in Finder and choose **Open**. Confirm **Open** in the macOS prompt.
+
+If macOS still blocks the app, remove the download quarantine attribute in Terminal:
+
+```sh
+xattr -dr com.apple.quarantine /path/to/Hermes.app
+open /path/to/Hermes.app
+```
+
+The app is currently distributed for Apple Silicon (`arm64`) macOS.
+
 To run the test suite:
 
 ```sh
@@ -59,4 +72,3 @@ OCR and translation use macOS services. Hermes does not include an analytics SDK
 ## License
 
 Copyright (c) 2026 Hong1495.
-
