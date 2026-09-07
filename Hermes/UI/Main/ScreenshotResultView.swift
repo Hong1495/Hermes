@@ -139,6 +139,20 @@ struct ScreenshotResultView: View {
                 saveImage()
             }
             .disabled(!hasImage || isExporting)
+
+            Divider()
+                .frame(height: 18)
+                .padding(.horizontal, 2)
+
+            Button(action: {
+                closeWindow()
+            }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 26, height: 26)
+            }
+            .modernStyle(.icon)
+            .help("关闭 (Esc)")
         }
     }
 

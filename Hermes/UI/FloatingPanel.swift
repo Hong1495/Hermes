@@ -15,10 +15,23 @@ class FloatingPanel: NSPanel {
         self.backgroundColor = .clear
         self.hasShadow = true
         self.isMovableByWindowBackground = false
+        self.hidesOnDeactivate = false
     }
     
     // MARK: - Window Behavior Overrides
     
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    override func cancelOperation(_ sender: Any?) {
+        NotificationCenter.default.post(name: .closeFloatingWindow, object: nil)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { // Escape
+            NotificationCenter.default.post(name: .closeFloatingWindow, object: nil)
+            return
+        }
+        super.keyDown(with: event)
+    }
 }

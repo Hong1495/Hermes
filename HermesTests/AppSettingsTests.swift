@@ -34,6 +34,8 @@ import Testing
             AppSettings.Key.lastTargetLang,
             AppSettings.Key.autoTranslateOnPaste,
             AppSettings.Key.showOCRPreview,
+            AppSettings.Key.showScreenshotEditor,
+            AppSettings.Key.autoCheckForUpdates,
         ]
         let uniqueKeys = Set(keys)
         #expect(keys.count == uniqueKeys.count, "All UserDefaults keys must be unique")
@@ -55,5 +57,23 @@ import Testing
         defaults.set(false, forKey: AppSettings.Key.showOCRPreview)
 
         #expect(AppSettings.showOCRPreview(in: defaults) == false)
+    }
+
+    @Test func showScreenshotEditorDefaultsToTrueWhenUnset() {
+        let suiteName = "hera.Hermes.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        #expect(AppSettings.showScreenshotEditor(in: defaults))
+    }
+
+    @Test func showScreenshotEditorReadsStoredFalse() {
+        let suiteName = "hera.Hermes.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        defaults.set(false, forKey: AppSettings.Key.showScreenshotEditor)
+
+        #expect(AppSettings.showScreenshotEditor(in: defaults) == false)
     }
 }

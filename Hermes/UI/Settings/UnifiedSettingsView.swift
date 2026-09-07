@@ -197,8 +197,17 @@ private struct GeneralSettingsTab: View {
 
 // MARK: - Shortcuts Tab
 private struct ShortcutsSettingsTab: View {
+    @AppStorage(AppSettings.Key.showScreenshotEditor) var showScreenshotEditor: Bool = AppSettings.Default.showScreenshotEditor
+
     var body: some View {
         VStack(spacing: Theme.Spacing.medium) {
+            SettingsCard(title: "截图工作流") {
+                Toggle("截图后弹出图片编辑窗口", isOn: $showScreenshotEditor)
+                Text("开启后，截图完成后自动呼出图片标注与编辑工作区；关闭后，截图将自动复制至剪贴板并播放提示音，不打扰当前工作。")
+                    .font(.caption)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+
             SettingsCard(title: "截图快捷键") {
                 ShortcutSettingRow(title: "选区截图", icon: "viewfinder", key: AppSettings.Key.shortcutCapture, defaultShortcut: Shortcut(key: .x, modifiers: [.command, .shift]))
                 Divider()

@@ -62,6 +62,33 @@ import Testing
 
         #expect(screenshotService.requestedModes == [.area])
     }
+
+    @Test func successfulCaptureWithEditorDisabledUpdatesStateAndPasteboard() async throws {
+        let suiteName = "hera.Hermes.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set(false, forKey: AppSettings.Key.showScreenshotEditor)
+
+        let appState = AppState()
+        let image = NSImage(size: NSSize(width: 20, height: 10))
+        let screenshotService = StubScreenshotService(result: .success(image))
+        let coordinator = CaptureCoordinator(
+            appState: appState,
+            screenshotService: screenshotService,
+            permissionChecker: StubPermissionChecker(isGranted: true),
+            screenshotPresentationDelay: 0,
+            defaults: defaults
+        )
+
+        coordinator.capture(mode: .area)
+        for _ in 0..<10 {
+            if appState.capturedImage != nil { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+
+        #expect(appState.capturedImage === image)
+        #expect(appState.lastCaptureMode == .area)
+    }
 }
 
 @MainActor

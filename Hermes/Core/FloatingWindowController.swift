@@ -66,28 +66,30 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
         let targetSize = calculateSize(for: mode, screen: screen)
         let origin = calculateOrigin(for: mode, size: targetSize, screen: screen)
 
-        // 先把面板加入窗口层级，再激活 accessory 应用。全局快捷键从后台触发时，
-        // 对没有可见窗口的 accessory 应用提前 activate 可能不会产生有效激活。
+        // 先把面板加入窗口层级，再激活应用
         panel.setFrame(NSRect(origin: origin, size: targetSize), display: true)
         panel.alphaValue = 1.0
         panel.orderFrontRegardless()
         NSApp.unhide(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        NSRunningApplication.current.activate(options: [.activateIgnoringOtherApps, .activateAllWindows])
         panel.makeKeyAndOrderFront(nil)
 
-        // 双重保险：延迟再次激活
+        // 双重保险：延迟再次激活，对抗 screencapture 退出后前台应用的焦点争夺
         activationTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(50))
             guard !Task.isCancelled, let self, self.panel.isVisible else { return }
             self.panel.orderFrontRegardless()
-            NSApp.activate(ignoringOtherApps: true)
+            NSRunningApplication.current.activate(options: [.activateIgnoringOtherApps, .activateAllWindows])
+            self.panel.makeKeyAndOrderFront(nil)
         }
 
-        // 窗口显示后再设置事件监听器，避免 screencapture 残留事件导致的时序竞争
+        // 窗口显示后再设置事件监听器（仅翻译模式开启失焦/外部点击自动关闭）
         monitorSetupTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(100))
             guard !Task.isCancelled, let self, self.panel.isVisible else { return }
-            self.setupEventMonitors()
+            if self.appState.mode == .translation {
+                self.setupEventMonitors()
+            }
         }
     }
 
@@ -167,9 +169,12 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
     private var activationObserver: NSObjectProtocol?
 
     private func setupEventMonitors() {
+        // 仅在翻译浮窗模式下启用失焦和外部点击自动关闭
+        guard appState.mode == .translation else { return }
+
         // 1. App Activation Monitor: 监听应用切换
-        // 只有当用户切换到"普通应用"（如浏览器、Finder）时才自动关闭。
-        // 如果切换到"辅助应用"（如剪贴板工具、截图工具，通常是 .accessory），则保持窗口显示，以便它们能完成操作（如粘贴）。
+        // 只有当用户切换到其他"普通应用"（如浏览器、Finder）时才自动关闭。
+        // 如果切换到"辅助应用"（如剪贴板工具，通常是 .accessory），则保持窗口显示，以便它们能完成操作。
         if activationObserver == nil {
             activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
                 forName: NSWorkspace.didActivateApplicationNotification,
@@ -180,10 +185,11 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
                 Task { @MainActor [weak self] in
                     guard let self = self,
                           self.panel.isVisible else { return }
+                    guard self.appState.mode == .translation else { return }
                     guard Date() >= self.suppressAutoCloseUntil else { return }
 
                     if let app = activatedApp {
-                        if app.activationPolicy == .regular {
+                        if app.bundleIdentifier != Bundle.main.bundleIdentifier, app.activationPolicy == .regular {
                             self.closeWindow()
                         }
                     }
@@ -196,6 +202,7 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
             localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
                 Task { @MainActor [weak self] in
                     guard let self = self else { return }
+                    guard self.appState.mode == .translation else { return }
 
                     if self.panel.isVisible && !self.isManagedWindow(event.window) {
                         self.closeWindow()
@@ -205,10 +212,12 @@ class FloatingWindowController: NSObject, NSWindowDelegate {
             }
         }
 
+        // 3. Global Monitor: 监听外部点击
         if globalMonitor == nil {
             globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self = self, self.panel.isVisible else { return }
+                    guard self.appState.mode == .translation else { return }
 
                     let mouseLocation = NSEvent.mouseLocation
                     if !self.isPointInsideManagedWindows(mouseLocation) {

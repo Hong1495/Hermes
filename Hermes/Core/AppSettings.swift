@@ -23,6 +23,7 @@ enum AppSettings {
         static let lastTargetLang = "lastTargetLang"
         static let autoTranslateOnPaste = "autoTranslateOnPaste"
         static let showOCRPreview = "showOCRPreview"
+        static let showScreenshotEditor = "showScreenshotEditor"
         static let autoCheckForUpdates = "autoCheckForUpdates"
     }
 
@@ -34,6 +35,7 @@ enum AppSettings {
         static let ocrFallbackLanguages = ["zh-Hans", "en-US"]
         static let autoTranslateOnPaste = true
         static let showOCRPreview = true
+        static let showScreenshotEditor = true
         static let autoCheckForUpdates = true
     }
 
@@ -42,6 +44,13 @@ enum AppSettings {
             return storedValue
         }
         return Default.showOCRPreview
+    }
+
+    static func showScreenshotEditor(in defaults: UserDefaults = .standard) -> Bool {
+        if let storedValue = defaults.object(forKey: Key.showScreenshotEditor) as? Bool {
+            return storedValue
+        }
+        return Default.showScreenshotEditor
     }
 
     static func autoTranslateOnPaste(in defaults: UserDefaults = .standard) -> Bool {

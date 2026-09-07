@@ -59,9 +59,10 @@ final class CaptureCoordinator {
     private let ocrPresentationDelay: TimeInterval
     private let permissionPollInterval: TimeInterval
     private let permissionPollLimit: Int
+    private let defaults: UserDefaults
     private var state: State = .idle
 
-    init(appState: AppState) {
+    init(appState: AppState, defaults: UserDefaults = .standard) {
         self.appState = appState
         self.screenshotService = ScreenshotService.shared
         self.permissionChecker = SystemScreenCapturePermissionChecker()
@@ -69,6 +70,7 @@ final class CaptureCoordinator {
         self.ocrPresentationDelay = 0.10
         self.permissionPollInterval = 0.5
         self.permissionPollLimit = 16
+        self.defaults = defaults
     }
 
     init(
@@ -78,7 +80,8 @@ final class CaptureCoordinator {
         screenshotPresentationDelay: TimeInterval = 0.15,
         ocrPresentationDelay: TimeInterval = 0.10,
         permissionPollInterval: TimeInterval = 0.5,
-        permissionPollLimit: Int = 16
+        permissionPollLimit: Int = 16,
+        defaults: UserDefaults = .standard
     ) {
         self.appState = appState
         self.screenshotService = screenshotService
@@ -87,6 +90,7 @@ final class CaptureCoordinator {
         self.ocrPresentationDelay = ocrPresentationDelay
         self.permissionPollInterval = permissionPollInterval
         self.permissionPollLimit = permissionPollLimit
+        self.defaults = defaults
     }
 
     // MARK: - Entry points
@@ -165,7 +169,16 @@ final class CaptureCoordinator {
             case .screenshot(let mode):
                 state = .idle
                 appState.setScreenshot(image, mode: mode)
-                windowController?.showWindow()
+
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.writeObjects([image])
+                NSSound(named: "Glass")?.play()
+                logger.notice("截图成功: 模式 \(String(describing: mode)), 已复制至剪贴板")
+
+                if AppSettings.showScreenshotEditor(in: defaults) {
+                    windowController?.showWindow()
+                }
             case .ocr:
                 state = .recognizingOCR
                 recognizeText(in: image)
@@ -198,7 +211,7 @@ final class CaptureCoordinator {
                 pasteboard.setString(text, forType: .string)
                 NSSound(named: "Glass")?.play()
                 self.logger.notice("OCR完成: 已复制 \(text.count) 字符")
-                if AppSettings.showOCRPreview() {
+                if AppSettings.showOCRPreview(in: self.defaults) {
                     self.appState.ocrResultText = text
                     self.windowController?.showWindow()
                 }
